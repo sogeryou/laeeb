@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Ban, Copy, Edit3, ShieldCheck, Trash2, UserCheck } from 'lucide-react';
-import { ActionButton, Badge, IconMiniButton, Panel } from '../../components';
+import { ActionButton, Badge, Field, IconMiniButton, ModalShell, Panel, SelectInput, TextInput } from '../../components';
 import { useToast } from '../../components/Toast';
 import { useClipboard } from '../../hooks/useClipboard';
 import { useAdminStore } from '../../store/useAdminStore';
@@ -27,12 +27,14 @@ export function UserBasicInfo({
   const [showLinked, setShowLinked] = useState(false);
   const [showBan, setShowBan] = useState(false);
   const [showUnban, setShowUnban] = useState(false);
+  const [showPhoneEdit, setShowPhoneEdit] = useState(false);
   const [edit, setEdit] = useState<EditState>(null);
 
   const userLabel = `${user.id} / ${user.name}`;
   const linkedUsers = (state.linkedAccountIds[user.id] ?? [])
     .map((id) => state.users.find((u) => u.id === id))
     .filter((u): u is AdminUser => Boolean(u));
+  const phone = splitPhone(user.phone);
 
   const openEdit = (field: EditableUserField, label: string, value: string) =>
     setEdit({ field, label, value });
@@ -86,7 +88,8 @@ export function UserBasicInfo({
           </InfoGroup>
 
           <InfoGroup title="绑定与设备环境">
-            <InfoItem label="绑定手机" value={user.phone} onEdit={() => openEdit('phone', '绑定手机', user.phone)} onDelete={() => deleteField('phone', '绑定手机')} />
+            <InfoItem label="绑定手机区号" value={phone.code} onEdit={() => setShowPhoneEdit(true)} />
+            <InfoItem label="绑定手机号" value={phone.number} onEdit={() => setShowPhoneEdit(true)} onDelete={() => deleteField('phone', '绑定手机')} />
             <InfoItem label="绑定邮箱" value={user.email} onEdit={() => openEdit('email', '绑定邮箱', user.email)} onDelete={() => deleteField('email', '绑定邮箱')} />
             <InfoItem label="IP" value={user.ip} onCopy={() => copy(user.ip, 'IP')} />
             <InfoItem label="设备型号" value={user.device.split(' / ')[0]} />
@@ -140,6 +143,19 @@ export function UserBasicInfo({
           }}
         />
       )}
+      {showPhoneEdit && (
+        <PhoneEditModal
+          userLabel={userLabel}
+          currentCode={phone.code}
+          currentNumber={phone.number}
+          onClose={() => setShowPhoneEdit(false)}
+          onConfirm={(code, number) => {
+            dispatch({ type: 'USER_FIELD_UPDATE', payload: { userId: user.id, field: 'phone', value: `${code} ${number}`.trim() } });
+            setShowPhoneEdit(false);
+            toast('已修改绑定手机', 'success');
+          }}
+        />
+      )}
       {edit && (
         <EditFieldModal
           field={edit.field}
@@ -155,6 +171,59 @@ export function UserBasicInfo({
         />
       )}
     </Panel>
+  );
+}
+
+const phoneCodeOptions = ['+20', '+90', '+966', '+971', '+974', '+965', '+962', '+212'];
+
+function splitPhone(phone: string) {
+  const normalized = phone.trim();
+  const matched = normalized.match(/^(\+\d{1,4})\s*(.*)$/);
+  if (matched) return { code: matched[1], number: matched[2].trim() };
+  return { code: '', number: normalized };
+}
+
+function uniqueOptions(currentValue: string, options: string[]) {
+  return currentValue && !options.includes(currentValue) ? [currentValue, ...options] : options;
+}
+
+function PhoneEditModal({
+  userLabel,
+  currentCode,
+  currentNumber,
+  onClose,
+  onConfirm,
+}: {
+  userLabel: string;
+  currentCode: string;
+  currentNumber: string;
+  onClose: () => void;
+  onConfirm: (code: string, number: string) => void;
+}) {
+  const [code, setCode] = useState(currentCode || phoneCodeOptions[0]);
+  const [number, setNumber] = useState(currentNumber);
+  const normalizedCode = code.trim();
+  const normalizedNumber = number.trim();
+
+  return (
+    <ModalShell
+      title="修改绑定手机"
+      subtitle={userLabel}
+      onClose={onClose}
+      onConfirm={() => onConfirm(normalizedCode, normalizedNumber)}
+      confirmText="保存修改"
+      confirmDisabled={!normalizedNumber || (normalizedCode === currentCode && normalizedNumber === currentNumber)}
+      maxWidth="max-w-md"
+    >
+      <div className="grid gap-3 sm:grid-cols-[128px_1fr]">
+        <Field label="区号">
+          <SelectInput value={code} onChange={setCode} options={uniqueOptions(code, phoneCodeOptions)} />
+        </Field>
+        <Field label="手机号">
+          <TextInput value={number} onChange={setNumber} placeholder="请输入手机号" />
+        </Field>
+      </div>
+    </ModalShell>
   );
 }
 

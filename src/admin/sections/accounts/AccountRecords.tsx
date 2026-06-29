@@ -42,7 +42,6 @@ export function AccountRecords({ user }: { user: AdminUser }) {
 function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset }) {
   const { state } = useAdminStore();
   const [draftStart, setDraftStart] = useState('');
-  const [draftEnd, setDraftEnd] = useState('');
   const [draftType, setDraftType] = useState('全部');
   const source = useMemo(
     () => state.ledgers.filter((row) => row.userId.startsWith(user.id) && row.asset === asset),
@@ -53,11 +52,10 @@ function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset })
   const unit = asset === '钻石' ? '钻石' : '金币';
   const runQuery = () => {
     q.setType(draftType);
-    q.setDateRange({ start: draftStart, end: draftEnd });
+    q.setDateRange({ start: draftStart });
   };
   const reset = () => {
     setDraftStart('');
-    setDraftEnd('');
     setDraftType('全部');
     q.reset();
   };
@@ -69,9 +67,7 @@ function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset })
         type={draftType}
         onType={setDraftType}
         dateStart={draftStart}
-        dateEnd={draftEnd}
         onDateStart={setDraftStart}
-        onDateEnd={setDraftEnd}
         onQuery={runQuery}
         onReset={reset}
       />
@@ -93,7 +89,6 @@ function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset })
 function OrderRecords({ user }: { user: AdminUser }) {
   const { state } = useAdminStore();
   const [draftStart, setDraftStart] = useState('');
-  const [draftEnd, setDraftEnd] = useState('');
   const [draftStatus, setDraftStatus] = useState('全部');
   const source = useMemo(
     () => state.orders.filter((o) => o.userId === user.id || o.epalId === user.id),
@@ -107,11 +102,10 @@ function OrderRecords({ user }: { user: AdminUser }) {
   const statusOptions = useMemo(() => ['全部', ...new Set(source.map((o) => o.status))], [source]);
   const runQuery = () => {
     q.setStatus(draftStatus);
-    q.setDateRange({ start: draftStart, end: draftEnd });
+    q.setDateRange({ start: draftStart });
   };
   const reset = () => {
     setDraftStart('');
-    setDraftEnd('');
     setDraftStatus('全部');
     q.reset();
   };
@@ -123,9 +117,7 @@ function OrderRecords({ user }: { user: AdminUser }) {
         status={draftStatus}
         onStatus={setDraftStatus}
         dateStart={draftStart}
-        dateEnd={draftEnd}
         onDateStart={setDraftStart}
-        onDateEnd={setDraftEnd}
         onQuery={runQuery}
         onReset={reset}
       />
@@ -156,9 +148,7 @@ function LedgerFilterBar({
   type,
   onType,
   dateStart,
-  dateEnd,
   onDateStart,
-  onDateEnd,
   onQuery,
   onReset,
 }: {
@@ -166,19 +156,14 @@ function LedgerFilterBar({
   type: string;
   onType: (v: string) => void;
   dateStart: string;
-  dateEnd: string;
   onDateStart: (v: string) => void;
-  onDateEnd: (v: string) => void;
   onQuery: () => void;
   onReset: () => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
-      <Field label="开始时间">
+    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(260px,1fr)_minmax(180px,0.7fr)_auto]">
+      <Field label="时间">
         <TextInput type="datetime-local" step="1" value={dateStart} onChange={onDateStart} />
-      </Field>
-      <Field label="结束时间">
-        <TextInput type="datetime-local" step="1" value={dateEnd} onChange={onDateEnd} />
       </Field>
       <Field label="类型">
         <SelectInput value={type} onChange={onType} options={typeOptions} />
@@ -200,9 +185,7 @@ function OrderFilterBar({
   status,
   onStatus,
   dateStart,
-  dateEnd,
   onDateStart,
-  onDateEnd,
   onQuery,
   onReset,
 }: {
@@ -210,19 +193,14 @@ function OrderFilterBar({
   status: string;
   onStatus: (v: string) => void;
   dateStart: string;
-  dateEnd: string;
   onDateStart: (v: string) => void;
-  onDateEnd: (v: string) => void;
   onQuery: () => void;
   onReset: () => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
-      <Field label="开始时间">
+    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(260px,1fr)_minmax(180px,0.7fr)_auto]">
+      <Field label="时间">
         <TextInput type="datetime-local" step="1" value={dateStart} onChange={onDateStart} />
-      </Field>
-      <Field label="结束时间">
-        <TextInput type="datetime-local" step="1" value={dateEnd} onChange={onDateEnd} />
       </Field>
       <Field label="订单状态">
         <SelectInput value={status} onChange={onStatus} options={statusOptions} />
