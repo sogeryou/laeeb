@@ -3,6 +3,7 @@ import { Badge, DataTable, Field, SelectInput, TextInput } from '../../component
 import { useTableQuery } from '../../hooks/useTableQuery';
 import { useAdminStore } from '../../store/useAdminStore';
 import type { AdminUser, LedgerAsset, LedgerRow, OrderRow } from '../../types';
+import { exportXlsx } from '../../utils/exportXlsx';
 import { formatNumber, formatSigned, getServiceCategory } from '../../utils/format';
 import { secondaryBtnClass } from '../../utils/ui';
 
@@ -59,6 +60,14 @@ function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset })
     setDraftType('全部');
     q.reset();
   };
+  const exportRows = () => {
+    exportXlsx(`${user.id}-${asset}流水.xlsx`, ['日期', '类型', `${unit}数量`, `变动后${unit}数量`], q.filtered.map((row) => [
+      row.time,
+      row.type,
+      row.amount,
+      row.balanceAfter,
+    ]));
+  };
 
   return (
     <div className="space-y-4">
@@ -70,6 +79,7 @@ function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset })
         onDateStart={setDraftStart}
         onQuery={runQuery}
         onReset={reset}
+        onExport={exportRows}
       />
       <DataTable
         columns={['日期', '类型', `${unit}数量`, `变动后${unit}数量`]}
@@ -80,7 +90,7 @@ function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset })
           formatNumber(row.balanceAfter),
         ])}
         emptyText={`暂无${asset}流水`}
-        pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage }}
+        pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}
       />
     </div>
   );
@@ -90,6 +100,10 @@ function OrderRecords({ user }: { user: AdminUser }) {
   const { state } = useAdminStore();
   const [draftStart, setDraftStart] = useState('');
   const [draftStatus, setDraftStatus] = useState('全部');
+  const [draftUserId, setDraftUserId] = useState('');
+  const [draftEpalId, setDraftEpalId] = useState('');
+  const [userId, setUserId] = useState('');
+  const [epalId, setEpalId] = useState('');
   const source = useMemo(
     () => state.orders.filter((o) => o.userId === user.id || o.epalId === user.id),
     [state.orders, user.id],
@@ -98,16 +112,44 @@ function OrderRecords({ user }: { user: AdminUser }) {
     dateKey: 'time',
     statusKey: 'status',
     searchKeys: ['id', 'userId', 'userName', 'epalId', 'epalName', 'service'],
+    extra: (row) => {
+      const userNeedle = userId.trim().toLowerCase();
+      const epalNeedle = epalId.trim().toLowerCase();
+      if (userNeedle && !row.userId.toLowerCase().includes(userNeedle)) return false;
+      if (epalNeedle && !row.epalId.toLowerCase().includes(epalNeedle)) return false;
+      return true;
+    },
   });
   const statusOptions = useMemo(() => ['全部', ...new Set(source.map((o) => o.status))], [source]);
   const runQuery = () => {
     q.setStatus(draftStatus);
     q.setDateRange({ start: draftStart });
+    setUserId(draftUserId);
+    setEpalId(draftEpalId);
   };
   const reset = () => {
     setDraftStart('');
     setDraftStatus('全部');
+    setDraftUserId('');
+    setDraftEpalId('');
+    setUserId('');
+    setEpalId('');
     q.reset();
+  };
+  const exportRows = () => {
+    exportXlsx(`${user.id}-订单记录.xlsx`, ['时间', '订单ID', '用户ID', '用户昵称', '陪玩ID', '陪玩昵称', '服务大类', '单价', '数量', '总额', '订单状态'], q.filtered.map((o) => [
+      o.time,
+      o.id,
+      o.userId,
+      o.userName,
+      o.epalId,
+      o.epalName,
+      getServiceCategory(o.service),
+      o.unitPrice,
+      o.quantity,
+      o.total,
+      o.status,
+    ]));
   };
 
   return (
@@ -118,8 +160,13 @@ function OrderRecords({ user }: { user: AdminUser }) {
         onStatus={setDraftStatus}
         dateStart={draftStart}
         onDateStart={setDraftStart}
+        userId={draftUserId}
+        onUserId={setDraftUserId}
+        epalId={draftEpalId}
+        onEpalId={setDraftEpalId}
         onQuery={runQuery}
         onReset={reset}
+        onExport={exportRows}
       />
       <DataTable
         columns={['时间', '订单ID', '用户ID', '用户昵称', '陪玩ID', '陪玩昵称', '服务大类', '单价', '数量', '总额', '订单状态']}
@@ -137,7 +184,7 @@ function OrderRecords({ user }: { user: AdminUser }) {
           <Badge label={o.status} />,
         ])}
         emptyText="暂无订单记录"
-        pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage }}
+        pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}
       />
     </div>
   );
@@ -151,6 +198,7 @@ function LedgerFilterBar({
   onDateStart,
   onQuery,
   onReset,
+  onExport,
 }: {
   typeOptions: string[];
   type: string;
@@ -159,6 +207,7 @@ function LedgerFilterBar({
   onDateStart: (v: string) => void;
   onQuery: () => void;
   onReset: () => void;
+  onExport: () => void;
 }) {
   return (
     <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(260px,1fr)_minmax(180px,0.7fr)_auto]">
@@ -175,6 +224,9 @@ function LedgerFilterBar({
         <button type="button" onClick={onReset} className={`${secondaryBtnClass} h-10`}>
           重置
         </button>
+        <button type="button" onClick={onExport} className={`${secondaryBtnClass} h-10`}>
+          导出
+        </button>
       </div>
     </div>
   );
@@ -186,24 +238,40 @@ function OrderFilterBar({
   onStatus,
   dateStart,
   onDateStart,
+  userId,
+  onUserId,
+  epalId,
+  onEpalId,
   onQuery,
   onReset,
+  onExport,
 }: {
   statusOptions: string[];
   status: string;
   onStatus: (v: string) => void;
   dateStart: string;
   onDateStart: (v: string) => void;
+  userId: string;
+  onUserId: (v: string) => void;
+  epalId: string;
+  onEpalId: (v: string) => void;
   onQuery: () => void;
   onReset: () => void;
+  onExport: () => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(260px,1fr)_minmax(180px,0.7fr)_auto]">
+    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.7fr)_minmax(160px,0.7fr)_minmax(160px,0.7fr)_auto]">
       <Field label="时间">
         <TextInput type="datetime-local" step="1" value={dateStart} onChange={onDateStart} />
       </Field>
       <Field label="订单状态">
         <SelectInput value={status} onChange={onStatus} options={statusOptions} />
+      </Field>
+      <Field label="用户ID">
+        <TextInput value={userId} onChange={onUserId} placeholder="查询用户ID" />
+      </Field>
+      <Field label="陪玩ID">
+        <TextInput value={epalId} onChange={onEpalId} placeholder="查询陪玩ID" />
       </Field>
       <div className="flex items-end gap-2">
         <button type="button" onClick={onQuery} className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-black text-white hover:bg-emerald-800">
@@ -211,6 +279,9 @@ function OrderFilterBar({
         </button>
         <button type="button" onClick={onReset} className={`${secondaryBtnClass} h-10`}>
           重置
+        </button>
+        <button type="button" onClick={onExport} className={`${secondaryBtnClass} h-10`}>
+          导出
         </button>
       </div>
     </div>

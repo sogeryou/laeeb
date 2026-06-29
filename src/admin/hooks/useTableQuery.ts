@@ -29,12 +29,14 @@ export function useTableQuery<T>(source: T[], config: TableQueryConfig<T> = {}) 
   const [status, setStatusRaw] = useState('全部');
   const [dateRange, setDateRangeRaw] = useState<DateRange>({});
   const [page, setPage] = useState(1);
+  const [pageSizeState, setPageSizeState] = useState(pageSize);
 
   // 任一筛选条件变化时回到第一页。
   const setKeyword = (v: string) => { setKeywordRaw(v); setPage(1); };
   const setType = (v: string) => { setTypeRaw(v); setPage(1); };
   const setStatus = (v: string) => { setStatusRaw(v); setPage(1); };
   const setDateRange = (v: DateRange) => { setDateRangeRaw(v); setPage(1); };
+  const setPageSize = (v: number) => { setPageSizeState(v); setPage(1); };
   const reset = () => {
     setKeywordRaw('');
     setTypeRaw('全部');
@@ -56,8 +58,8 @@ export function useTableQuery<T>(source: T[], config: TableQueryConfig<T> = {}) 
 
   const total = filtered.length;
   const pageItems = useMemo(
-    () => filtered.slice((page - 1) * pageSize, page * pageSize),
-    [filtered, page, pageSize],
+    () => filtered.slice((page - 1) * pageSizeState, page * pageSizeState),
+    [filtered, page, pageSizeState],
   );
 
   return {
@@ -66,10 +68,10 @@ export function useTableQuery<T>(source: T[], config: TableQueryConfig<T> = {}) 
     status, setStatus,
     dateRange, setDateRange,
     page, setPage,
+    pageSize: pageSizeState, setPageSize,
     reset,
     filtered,
     pageItems,
     total,
-    pageSize,
   };
 }

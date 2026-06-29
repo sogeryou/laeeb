@@ -17,6 +17,7 @@ export function DataTable({
     pageSize: number;
     total: number;
     onPageChange: (page: number) => void;
+    onPageSizeChange?: (pageSize: number) => void;
   };
 }) {
   const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize)) : 1;
@@ -62,7 +63,24 @@ export function DataTable({
           <p className="text-xs font-bold text-slate-500">
             共 {pagination.total} 条 · 第 {pagination.page} / {totalPages} 页
           </p>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {pagination.onPageSizeChange && (
+              <label className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                每页
+                <select
+                  value={pagination.pageSize}
+                  onChange={(e) => pagination.onPageSizeChange?.(Number(e.target.value))}
+                  className="h-9 rounded-md border border-slate-200 bg-white px-2 text-xs font-black text-slate-700 outline-none focus:border-emerald-500"
+                >
+                  {[10, 30, 50, 100].map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+                条
+              </label>
+            )}
             <PageButton
               label="上一页"
               disabled={pagination.page <= 1}
