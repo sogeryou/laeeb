@@ -1,0 +1,362 @@
+@import "tailwindcss";
+
+/* ============================================
+   ePal Gaming — Design Token System
+   Middle Eastern / GCC Gaming Companion Platform
+   ============================================ */
+
+@theme {
+  /* --- Color Palette: GCC-inspired warm minimal dark theme --- */
+  --color-surface-base: #07110f;
+  --color-surface-elevated: #0c1714;
+  --color-surface-card: #10201b;
+  --color-surface-glass: rgb(255 255 255 / 0.055);
+  --color-surface-glass-hover: rgb(255 255 255 / 0.085);
+
+  --color-primary: #10b981;
+  --color-primary-soft: #34d399;
+  --color-primary-muted: rgb(16 185 129 / 0.16);
+  --color-primary-glow: rgb(16 185 129 / 0.22);
+
+  --color-accent-gold: #f59e0b;
+  --color-accent-gold-soft: #fbbf24;
+  --color-accent-rose: #fb7185;
+
+  --color-text-primary: #f6f1e6;
+  --color-text-secondary: #b7bfae;
+  --color-text-muted: #788474;
+
+  --color-border: rgb(255 255 255 / 0.075);
+  --color-border-active: rgb(16 185 129 / 0.38);
+  --color-border-glow: rgb(16 185 129 / 0.16);
+
+  /* --- Typography Scale --- */
+  --font-family-arabic: 'Tajawal', 'Cairo', 'Almarai', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-family-latin: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+
+  /* --- Spacing System (8px base) --- */
+  --spacing-section: 1.5rem;
+  --spacing-card: 1rem;
+  --spacing-item: 0.5rem;
+
+  /* --- Border Radius --- */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+  --radius-full: 9999px;
+
+  /* --- Shadows --- */
+  --shadow-card: 0 12px 32px rgb(0 0 0 / 0.22), inset 0 1px 0 rgb(255 255 255 / 0.035);
+  --shadow-card-hover: 0 18px 44px rgb(0 0 0 / 0.32), 0 0 0 1px rgb(16 185 129 / 0.13);
+  --shadow-modal: 0 25px 50px rgb(0 0 0 / 0.5);
+  --shadow-glow-emerald: 0 0 20px rgb(16 185 129 / 0.3);
+  --shadow-glow-gold: 0 0 16px rgb(245 158 11 / 0.2);
+
+  /* --- Transitions --- */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================
+   Base Layer
+   ============================================ */
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-family-latin);
+    background:
+      radial-gradient(circle at 20% -10%, rgb(16 185 129 / 0.12), transparent 30rem),
+      radial-gradient(circle at 100% 8%, rgb(245 158 11 / 0.08), transparent 26rem),
+      linear-gradient(180deg, #07110f 0%, #081411 42%, #050b0a 100%);
+    background-attachment: fixed;
+    background-color: var(--color-surface-base);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+    letter-spacing: 0;
+    overflow-x: hidden;
+    touch-action: manipulation;
+  }
+
+  button,
+  [role="button"],
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Arabic font override */
+  [lang="ar"] body,
+  [dir="rtl"] body,
+  html[lang="ar"],
+  html[dir="rtl"] {
+    font-family: var(--font-family-arabic);
+    letter-spacing: 0;
+  }
+
+  /* Focus ring */
+  *:focus-visible {
+    outline: 2px solid var(--color-primary-soft);
+    outline-offset: 2px;
+    border-radius: 10px;
+  }
+
+  /* Selection */
+  ::selection {
+    background: rgb(16 185 129 / 0.3);
+    color: #fff;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(255 255 255 / 0.08);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(255 255 255 / 0.15);
+  }
+}
+
+/* ============================================
+   Utilities
+   ============================================ */
+
+@layer utilities {
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Glass surface — unified glassmorphism card */
+  .glass {
+    background: var(--color-surface-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+
+  .glass-interactive {
+    background: var(--color-surface-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    transition: all 0.2s var(--ease-out-smooth);
+    cursor: pointer;
+    box-shadow: var(--shadow-card);
+  }
+  .glass-interactive:hover {
+    background: var(--color-surface-glass-hover);
+    border-color: var(--color-border-active);
+    box-shadow: var(--shadow-card-hover);
+  }
+  .glass-interactive:active {
+    transform: scale(0.985);
+  }
+
+  /* Premium gradient surfaces */
+  .surface-premium {
+    background: linear-gradient(
+      135deg,
+      rgb(16 185 129 / 0.14) 0%,
+      rgb(245 158 11 / 0.08) 48%,
+      rgb(255 255 255 / 0.035) 100%
+    );
+    border: 1px solid rgb(16 185 129 / 0.2);
+  }
+
+  .surface-gold {
+    background: linear-gradient(
+      135deg,
+      rgb(245 158 11 / 0.12) 0%,
+      rgb(251 191 36 / 0.06) 50%,
+      rgb(245 158 11 / 0.04) 100%
+    );
+    border: 1px solid rgb(245 158 11 / 0.2);
+  }
+
+  /* RTL logical properties */
+  .rtl-safe-ml {
+    margin-inline-start: var(--spacing-item);
+  }
+  .rtl-safe-mr {
+    margin-inline-end: var(--spacing-item);
+  }
+  .rtl-safe-pl {
+    padding-inline-start: var(--spacing-card);
+  }
+  .rtl-safe-pr {
+    padding-inline-end: var(--spacing-card);
+  }
+
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Animated gradient border */
+  .border-glow {
+    position: relative;
+  }
+  .border-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgb(16 185 129 / 0.42),
+      rgb(245 158 11 / 0.25),
+      rgb(16 185 129 / 0.12)
+    );
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+    pointer-events: none;
+  }
+
+  /* Pulse dot for online status */
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 6px rgb(34 197 94 / 0.5);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+}
+
+/* ============================================
+   Arabic / RTL Overrides
+   ============================================ */
+
+[dir="rtl"] {
+  /* Flip directional icons */
+  .icon-directional {
+    transform: scaleX(-1);
+  }
+
+  /* Ensure numbers stay LTR */
+  .num-ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* RTL form inputs */
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="search"],
+  textarea {
+    text-align: start;
+  }
+
+  .rtl\:rotate-180 {
+    transform: rotate(180deg);
+  }
+}
+
+/* ============================================
+   Product Polish Overrides
+   ============================================ */
+
+.app-shell {
+  background:
+    radial-gradient(circle at 18% 0%, rgb(16 185 129 / 0.13), transparent 24rem),
+    radial-gradient(circle at 88% 10%, rgb(245 158 11 / 0.08), transparent 22rem),
+    linear-gradient(180deg, #07110f 0%, #07110f 54%, #050908 100%);
+}
+
+.app-header {
+  background: rgb(7 17 15 / 0.82);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 0.18);
+}
+
+.bottom-nav-surface {
+  background: rgb(7 17 15 / 0.9);
+  box-shadow: 0 -16px 40px rgb(0 0 0 / 0.32);
+}
+
+.tap-card {
+  transform: translateZ(0);
+}
+
+.tap-card:active {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   Animation Keyframes
+   ============================================ */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s var(--ease-out-smooth) both;
+}
