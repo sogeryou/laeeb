@@ -11,7 +11,6 @@ const matchUser = (user: AdminUser, q: UserSearchValues): boolean => {
     !value.trim() || field.toLowerCase().includes(value.trim().toLowerCase());
   return (
     test(user.mid, q.mid) &&
-    test(user.showId, q.showId) &&
     test(user.name, q.name) &&
     test(user.phone, q.phone) &&
     test(user.email, q.email)

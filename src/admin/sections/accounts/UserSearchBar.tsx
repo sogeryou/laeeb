@@ -3,15 +3,14 @@ import { primaryBtnClass, secondaryBtnClass } from '../../utils/ui';
 
 export interface UserSearchValues {
   mid: string;
-  showId: string;
   name: string;
   phone: string;
   email: string;
 }
 
-export const emptyUserSearch: UserSearchValues = { mid: '', showId: '', name: '', phone: '', email: '' };
+export const emptyUserSearch: UserSearchValues = { mid: '', name: '', phone: '', email: '' };
 
-/** 用户查询条（docx §1：mid / 靓号 / 昵称 / 手机号 / 邮箱）。 */
+/** 用户查询条（docx §1：mid / 昵称 / 手机号 / 邮箱）。 */
 export function UserSearchBar({
   values,
   onChange,
@@ -29,7 +28,6 @@ export function UserSearchBar({
     <div className="rounded-md border border-slate-200 bg-white p-4">
       <div className="grid gap-3 xl:grid-cols-[1fr_1fr_1fr]">
         <QueryField label="用户mid" placeholder="用户mid" value={values.mid} onChange={set('mid')} />
-        <QueryField label="用户靓号" placeholder="用户靓号" value={values.showId} onChange={set('showId')} />
         <QueryField label="用户昵称" placeholder="请输入用户昵称" value={values.name} onChange={set('name')} />
         <QueryField label="用户手机号" placeholder="请输入用户手机号" value={values.phone} onChange={set('phone')} />
         <QueryField label="用户邮箱" placeholder="请输入用户邮箱" value={values.email} onChange={set('email')} />
