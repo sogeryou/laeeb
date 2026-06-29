@@ -48,7 +48,7 @@ function replaceById<T extends { id: string }>(list: T[], id: string, patch: (it
 export function adminReducer(state: AdminState, action: AdminAction): AdminState {
   switch (action.type) {
     case 'ASSET_ADJUST': {
-      const { userIds, asset, delta, operator } = action.payload;
+      const { userIds, asset, delta, operator, reason } = action.payload;
       let seq = state.seq;
       const newLedgers: LedgerRow[] = [];
       const newOps: AssetOperation[] = [];
@@ -76,6 +76,7 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
           asset,
           amount: `${delta >= 0 ? '+' : ''}${delta}`,
           operator,
+          reason,
           status: '已完成',
         });
         return { ...user, [balanceKey]: nextBalance };
@@ -91,7 +92,7 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
     }
 
     case 'VOUCHER_GRANT': {
-      const { userIds, count, value, operator } = action.payload;
+      const { userIds, count, value, operator, reason } = action.payload;
       let seq = state.seq;
       const time = nowTime();
       const newOps = userIds.map((userId) => {
@@ -103,6 +104,7 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
           asset: '代金券' as const,
           amount: `+${count} 张 (${value} 金币/张)`,
           operator,
+          reason,
           status: '已完成' as const,
         };
       });

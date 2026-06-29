@@ -12,6 +12,7 @@ export interface AssetAdjustPayload {
   /** 正数为增加，负数为减少。 */
   delta: number;
   operator: string;
+  reason: string;
 }
 
 /** 下发代金券。 */
@@ -20,6 +21,7 @@ export interface VoucherGrantPayload {
   count: number;
   value: number;
   operator: string;
+  reason: string;
 }
 
 /** 提现审核处置。 */

@@ -26,6 +26,7 @@ export interface AssetOperation {
   asset: AssetKind | '代金券';
   amount: string;
   operator: string;
+  reason: string;
   status: '已完成' | '复核中' | '已撤销';
 }
 

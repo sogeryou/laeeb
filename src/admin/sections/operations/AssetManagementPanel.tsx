@@ -23,14 +23,16 @@ export function AssetManagementPanel() {
   const [amount, setAmount] = useState('');
   const [voucherCount, setVoucherCount] = useState('');
   const [voucherValue, setVoucherValue] = useState('');
+  const [reason, setReason] = useState('');
 
   const ops = useMemo(() => state.assetOps.filter((row) => row.asset === assetTab), [state.assetOps, assetTab]);
-  const canSubmit = validation.status === 'success';
+  const canSubmit = validation.status === 'success' && reason.trim().length > 0;
 
   const resetForm = () => {
     setAmount('');
     setVoucherCount('');
     setVoucherValue('');
+    setReason('');
   };
 
   const validateIds = () => {
@@ -41,7 +43,12 @@ export function AssetManagementPanel() {
   };
 
   const submit = () => {
-    if (!canSubmit) return;
+    const normalizedReason = reason.trim();
+    if (validation.status !== 'success') return;
+    if (!normalizedReason) {
+      toast('请填写操作原因', 'error');
+      return;
+    }
     // 用规范化后的真实 ID（保持大小写一致）。
     const userIds = validation.validIds.map(
       (id) => state.users.find((u) => u.id.toLowerCase() === id.toLowerCase())?.id ?? id,
@@ -54,7 +61,7 @@ export function AssetManagementPanel() {
         toast('请输入有效的张数与面值', 'error');
         return;
       }
-      dispatch({ type: 'VOUCHER_GRANT', payload: { userIds, count, value, operator: state.operator } });
+      dispatch({ type: 'VOUCHER_GRANT', payload: { userIds, count, value, operator: state.operator, reason: normalizedReason } });
       toast(`已向 ${userIds.length} 个用户下发代金券`, 'success');
     } else {
       const value = Number(amount);
@@ -63,7 +70,7 @@ export function AssetManagementPanel() {
         return;
       }
       const delta = direction === '增加' ? value : -value;
-      dispatch({ type: 'ASSET_ADJUST', payload: { userIds, asset: assetTab, delta, operator: state.operator } });
+      dispatch({ type: 'ASSET_ADJUST', payload: { userIds, asset: assetTab, delta, operator: state.operator, reason: normalizedReason } });
       toast(`已为 ${userIds.length} 个用户${direction} ${value} ${assetTab}`, 'success');
     }
     resetForm();
@@ -157,11 +164,21 @@ export function AssetManagementPanel() {
               </button>
             </div>
           </div>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-black text-slate-500">操作原因（必填）</span>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="min-h-20 w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              placeholder="请填写本次加减资产或下发代金券的原因"
+            />
+          </label>
         </div>
 
         <DataTable
-          columns={['操作时间', '用户ID', '数量', '操作人', '操作状态']}
-          rows={ops.map((row) => [row.time, row.userId, row.amount, row.operator, <Badge label={row.status} />])}
+          columns={['操作时间', '用户ID', '数量', '操作人', '原因', '操作状态']}
+          rows={ops.map((row) => [row.time, row.userId, row.amount, row.operator, row.reason, <Badge label={row.status} />])}
           emptyText={`暂无${assetTab}操作记录`}
         />
       </div>
