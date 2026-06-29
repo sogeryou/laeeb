@@ -22,6 +22,8 @@ export function BanConfigModal({
   const [reason, setReason] = useState('');
   const isBanMode = mode === 'ban';
   const actionText = isBanMode ? '封禁' : '解封';
+  const includesAccountDimension = selectedDimensions.includes('账号');
+  const includesDeviceDimension = selectedDimensions.includes('设备');
 
   const toggle = <T,>(list: T[], item: T, setter: (next: T[]) => void) => {
     if (list.includes(item)) {
@@ -37,7 +39,7 @@ export function BanConfigModal({
       title={`${actionText}配置`}
       subtitle={`${user.id} / ${user.name} · DID：${user.did}`}
       onClose={onClose}
-      onConfirm={() => onConfirm({ dimensions: selectedDimensions, modules: selectedModules, reason })}
+      onConfirm={() => onConfirm({ dimensions: selectedDimensions, modules: includesAccountDimension ? selectedModules : ['账号'], reason })}
       confirmText={`确认${actionText}`}
       footerTone={isBanMode ? 'danger' : 'success'}
       maxWidth="max-w-xl"
@@ -62,7 +64,7 @@ export function BanConfigModal({
         </div>
       </fieldset>
 
-      {isBanMode && (
+      {isBanMode && includesAccountDimension && (
         <fieldset>
           <legend className="mb-2 text-sm font-black text-slate-700">封禁模块</legend>
           <div className="grid gap-2 sm:grid-cols-3">
@@ -84,6 +86,12 @@ export function BanConfigModal({
         </fieldset>
       )}
 
+      {isBanMode && includesDeviceDimension && (
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold leading-5 text-slate-700">
+          设备维度默认封禁登录：该设备上无法登录任何账号，无需选择封禁模块。
+        </div>
+      )}
+
       <label className="block space-y-1">
         <span className="text-sm font-black text-slate-700">{actionText}原因</span>
         <textarea
@@ -98,7 +106,7 @@ export function BanConfigModal({
         isBanMode ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
       }`}>
         {isBanMode
-          ? `账号封禁后该账号在任何设备都无法登录；设备封禁后该设备上的任何账号都无法登录；同时选择则两者叠加生效。当前将按「${selectedDimensions.join('、')}」维度封禁「${selectedModules.join('、')}」模块。`
+          ? `账号封禁后该账号在任何设备都无法登录；设备封禁后该设备上的任何账号都无法登录；同时选择则两者叠加生效。当前将按「${selectedDimensions.join('、')}」维度封禁${includesAccountDimension ? `「${selectedModules.join('、')}」模块` : '登录'}。`
           : `账号解封只解除当前账号限制；设备解封会解除该设备登录账号的设备限制；同时选择则两者一起解除。当前将按「${selectedDimensions.join('、')}」维度解除封禁。`}
       </div>
     </ModalShell>

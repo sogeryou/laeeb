@@ -65,15 +65,8 @@ export function UserBasicInfo({
             </div>
           </div>
           <div className="mt-4 grid gap-2">
-            {user.status === '冻结' ? (
-              <ActionButton
-                icon={ShieldCheck}
-                label="解封"
-                onClick={() => setShowUnban(true)}
-              />
-            ) : (
-              <ActionButton icon={Ban} label="封禁" tone="danger" onClick={() => setShowBan(true)} />
-            )}
+            <ActionButton icon={Ban} label="封禁" tone="danger" onClick={() => setShowBan(true)} />
+            <ActionButton icon={ShieldCheck} label="解封" onClick={() => setShowUnban(true)} />
           </div>
         </div>
 
