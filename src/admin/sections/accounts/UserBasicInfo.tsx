@@ -88,7 +88,7 @@ export function UserBasicInfo({
           </InfoGroup>
 
           <InfoGroup title="绑定与设备环境">
-            <InfoItem label="绑定手机" value={user.phone} onEdit={() => setShowPhoneEdit(true)} onDelete={() => deleteField('phone', '绑定手机')} />
+            <InfoItem label="绑定手机号" value={user.phone} onEdit={() => setShowPhoneEdit(true)} onDelete={() => deleteField('phone', '绑定手机号')} />
             <InfoItem label="绑定邮箱" value={user.email} onEdit={() => openEdit('email', '绑定邮箱', user.email)} onDelete={() => deleteField('email', '绑定邮箱')} />
             <InfoItem label="IP" value={user.ip} onCopy={() => copy(user.ip, 'IP')} />
             <InfoItem label="设备型号" value={user.device.split(' / ')[0]} />
@@ -151,7 +151,7 @@ export function UserBasicInfo({
           onConfirm={(code, number) => {
             dispatch({ type: 'USER_FIELD_UPDATE', payload: { userId: user.id, field: 'phone', value: `${code} ${number}`.trim() } });
             setShowPhoneEdit(false);
-            toast('已修改绑定手机', 'success');
+            toast('已修改绑定手机号', 'success');
           }}
         />
       )}
