@@ -52,6 +52,7 @@ export type EditableUserField =
   | 'country'
   | 'phone'
   | 'email'
+  | 'avatar'
   | 'contentRegion'
   | 'signature';
 

@@ -45,6 +45,23 @@ function replaceById<T extends { id: string }>(list: T[], id: string, patch: (it
   return list.map((item) => (item.id === id ? patch(item) : item));
 }
 
+const defaultUserName = (userId: string): string => `默认用户${userId.slice(-4)}`;
+const defaultAvatar = '';
+
+function deviceLoginUserIds(state: AdminState, userId: string): string[] {
+  return Array.from(new Set([userId, ...(state.linkedAccountIds[userId] ?? [])]));
+}
+
+function removeBanDimensions(user: AdminUser, dimensions: string[]): AdminUser {
+  const bans = (user.bans ?? [])
+    .map((ban) => ({
+      ...ban,
+      dimensions: ban.dimensions.filter((dimension) => !dimensions.includes(dimension)),
+    }))
+    .filter((ban) => ban.dimensions.length > 0);
+  return { ...user, status: bans.length > 0 ? '冻结' as const : '正常' as const, bans };
+}
+
 export function adminReducer(state: AdminState, action: AdminAction): AdminState {
   switch (action.type) {
     case 'ASSET_ADJUST': {
@@ -142,32 +159,35 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
 
     case 'USER_BAN': {
       const { userId, dimensions, modules, reason } = action.payload;
+      const deviceUserIds = dimensions.includes('设备') ? deviceLoginUserIds(state, userId) : [userId];
       const users = state.users.map((user) =>
-        user.id === userId
-          ? {
-              ...user,
-              status: '冻结' as const,
-              bans: [
-                ...(user.bans ?? []),
-                { dimensions, modules, reason: reason ?? '', bannedAt: nowTime() },
-              ],
-            }
+        deviceUserIds.includes(user.id)
+          ? (() => {
+              const appliedDimensions = user.id === userId ? dimensions : dimensions.filter((dimension) => dimension === '设备');
+              if (appliedDimensions.length === 0) return user;
+              return {
+                ...user,
+                status: '冻结' as const,
+                bans: [
+                  ...(user.bans ?? []),
+                  { dimensions: appliedDimensions, modules, reason: reason ?? '', bannedAt: nowTime() },
+                ],
+              };
+            })()
           : user,
       );
       return { ...state, users };
     }
 
     case 'USER_UNBAN': {
+      const deviceUserIds = action.payload.dimensions.includes('设备') ? deviceLoginUserIds(state, action.payload.userId) : [action.payload.userId];
       const users = state.users.map((user) =>
-        user.id === action.payload.userId
+        deviceUserIds.includes(user.id)
           ? (() => {
-              const bans = (user.bans ?? [])
-                .map((ban) => ({
-                  ...ban,
-                  dimensions: ban.dimensions.filter((dimension) => !action.payload.dimensions.includes(dimension)),
-                }))
-                .filter((ban) => ban.dimensions.length > 0);
-              return { ...user, status: bans.length > 0 ? user.status : '正常' as const, bans };
+              const dimensionsToRemove = user.id === action.payload.userId
+                ? action.payload.dimensions
+                : action.payload.dimensions.filter((dimension) => dimension === '设备');
+              return removeBanDimensions(user, dimensionsToRemove);
             })()
           : user,
       );
@@ -184,9 +204,12 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
 
     case 'USER_FIELD_DELETE': {
       const { userId, field } = action.payload;
-      const users = state.users.map((user) =>
-        user.id === userId ? { ...user, [field]: '' } : user,
-      );
+      const users = state.users.map((user) => {
+        if (user.id !== userId) return user;
+        if (field === 'name') return { ...user, name: defaultUserName(user.id) };
+        if (field === 'avatar') return { ...user, avatar: defaultAvatar };
+        return { ...user, [field]: '' };
+      });
       return { ...state, users };
     }
 

@@ -6,12 +6,20 @@ import { useClipboard } from '../../hooks/useClipboard';
 import { useAdminStore } from '../../store/useAdminStore';
 import type { EditableUserField } from '../../store/actions';
 import type { AdminUser } from '../../types';
-import { formatNumber, formatUsd } from '../../utils/format';
+import { formatNumber } from '../../utils/format';
 import { BanConfigModal } from './modals/BanConfigModal';
 import { EditFieldModal } from './modals/EditFieldModal';
 import { LinkedAccountsModal } from './modals/LinkedAccountsModal';
 
 type EditState = { field: EditableUserField; label: string; value: string } | null;
+const defaultAvatarSvg = encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <rect width="120" height="120" rx="60" fill="#e2e8f0"/>
+  <circle cx="60" cy="45" r="20" fill="#94a3b8"/>
+  <path d="M28 99c6-22 20-33 32-33s26 11 32 33" fill="#94a3b8"/>
+</svg>
+`);
+const defaultAvatarUrl = `data:image/svg+xml;charset=UTF-8,${defaultAvatarSvg}`;
 
 /** 用户基础信息面板（docx §1.A + §2.B 修改/删减 + 封禁/解封）。 */
 export function UserBasicInfo({
@@ -35,6 +43,7 @@ export function UserBasicInfo({
     .map((id) => state.users.find((u) => u.id === id))
     .filter((u): u is AdminUser => Boolean(u));
   const phone = splitPhone(user.phone);
+  const avatarSrc = user.avatar || defaultAvatarUrl;
 
   const openEdit = (field: EditableUserField, label: string, value: string) =>
     setEdit({ field, label, value });
@@ -49,10 +58,10 @@ export function UserBasicInfo({
       <div className="grid gap-6 xl:grid-cols-[156px_minmax(0,1fr)] xl:items-start">
         <div className="pt-2">
           <div className="group relative mx-auto size-28 overflow-hidden rounded-full border border-slate-200">
-            <img src={user.avatar} alt={user.name} className="size-full object-cover" />
+            <img src={avatarSrc} alt={user.name} className="size-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center gap-2 bg-slate-950/45 opacity-0 transition group-hover:opacity-100">
               <IconMiniButton label="修改头像" icon={Edit3} onClick={() => toast('已打开头像编辑（示例）', 'info')} />
-              <IconMiniButton label="删除头像" icon={Trash2} onClick={() => toast('已删除头像（示例）', 'info')} />
+              <IconMiniButton label="删除头像" icon={Trash2} onClick={() => deleteField('avatar', '头像')} />
             </div>
           </div>
           <div className="mt-4 grid gap-2">
@@ -73,7 +82,7 @@ export function UserBasicInfo({
             <InfoItem label="user_id" value={user.id} onCopy={() => copy(user.id, 'user_id')} />
             <InfoItem label="用户名" value={user.name} onEdit={() => openEdit('name', '用户名', user.name)} onDelete={() => deleteField('name', '用户名')} />
             <InfoItem label="性别" value={user.gender} onEdit={() => openEdit('gender', '性别', user.gender)} />
-            <InfoItem label="国家" value={user.country} onEdit={() => openEdit('country', '国家', user.country)} onDelete={() => deleteField('country', '国家')} />
+            <InfoItem label="国家" value={user.country} onEdit={() => openEdit('country', '国家', user.country)} />
             <InfoItem label="当前身份" value={user.role} />
             <InfoItem label="状态" value={user.status} badge />
             <InfoItem label="注册时间" value={`${user.registeredAt}(UTC+3)`} />
@@ -83,7 +92,7 @@ export function UserBasicInfo({
           <InfoGroup title="资产数据">
             <InfoItem label="金币余额" value={formatNumber(user.coins)} highlight noWrap />
             <InfoItem label="钻石余额" value={formatNumber(user.diamonds)} highlight noWrap />
-            <InfoItem label="历史累积充值（美金）" value={formatUsd(user.totalRecharge)} noWrap />
+            <InfoItem label="历史累积充值（金币）" value={formatNumber(user.totalRecharge)} noWrap />
             <InfoItem label="历史累计收钻" value={formatNumber(user.totalReceivedDiamonds)} noWrap />
           </InfoGroup>
 
@@ -94,9 +103,9 @@ export function UserBasicInfo({
             <InfoItem label="设备型号" value={user.device.split(' / ')[0]} />
             <InfoItem label="DID" value={user.did} onCopy={() => copy(user.did, 'DID')} />
             <InfoItem
-              label="设备关联账号"
-              value={`${linkedUsers.length || user.linkedAccounts} 个`}
-              actionLabel="查看关联账号"
+              label="设备登录账号"
+              value={`${linkedUsers.length || user.linkedAccounts} 个（该设备登录过）`}
+              actionLabel="查看账号"
               onAction={() => setShowLinked(true)}
             />
             <InfoItem label="版本信息" value={user.version} />

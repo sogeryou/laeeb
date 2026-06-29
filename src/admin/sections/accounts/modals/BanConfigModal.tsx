@@ -98,8 +98,8 @@ export function BanConfigModal({
         isBanMode ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
       }`}>
         {isBanMode
-          ? `将按「${selectedDimensions.join('、')}」维度封禁「${selectedModules.join('、')}」模块。`
-          : `将按「${selectedDimensions.join('、')}」维度解除封禁，账号和设备维度可同时解封。`}
+          ? `账号封禁后该账号在任何设备都无法登录；设备封禁后该设备上的任何账号都无法登录；同时选择则两者叠加生效。当前将按「${selectedDimensions.join('、')}」维度封禁「${selectedModules.join('、')}」模块。`
+          : `账号解封只解除当前账号限制；设备解封会解除该设备登录账号的设备限制；同时选择则两者一起解除。当前将按「${selectedDimensions.join('、')}」维度解除封禁。`}
       </div>
     </ModalShell>
   );
