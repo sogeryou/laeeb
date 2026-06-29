@@ -8,16 +8,20 @@ const banModules: BanModule[] = ['账号', '下单', '接单', '充值', '提现
 /** 封禁配置（docx §2.B：封禁维度 × 封禁模块）。 */
 export function BanConfigModal({
   user,
+  mode = 'ban',
   onClose,
   onConfirm,
 }: {
   user: AdminUser;
+  mode?: 'ban' | 'unban';
   onClose: () => void;
   onConfirm: (payload: { dimensions: BanDimension[]; modules: BanModule[]; reason: string }) => void;
 }) {
   const [selectedDimensions, setSelectedDimensions] = useState<BanDimension[]>(['账号']);
   const [selectedModules, setSelectedModules] = useState<BanModule[]>(['账号']);
   const [reason, setReason] = useState('');
+  const isBanMode = mode === 'ban';
+  const actionText = isBanMode ? '封禁' : '解封';
 
   const toggle = <T,>(list: T[], item: T, setter: (next: T[]) => void) => {
     if (list.includes(item)) {
@@ -30,16 +34,16 @@ export function BanConfigModal({
 
   return (
     <ModalShell
-      title="封禁配置"
+      title={`${actionText}配置`}
       subtitle={`${user.id} / ${user.name} · DID：${user.did}`}
       onClose={onClose}
       onConfirm={() => onConfirm({ dimensions: selectedDimensions, modules: selectedModules, reason })}
-      confirmText="确认封禁"
-      footerTone="danger"
+      confirmText={`确认${actionText}`}
+      footerTone={isBanMode ? 'danger' : 'success'}
       maxWidth="max-w-xl"
     >
       <fieldset>
-        <legend className="mb-2 text-sm font-black text-slate-700">封禁维度</legend>
+        <legend className="mb-2 text-sm font-black text-slate-700">{actionText}维度</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {dimensions.map((item) => (
             <button
@@ -58,38 +62,44 @@ export function BanConfigModal({
         </div>
       </fieldset>
 
-      <fieldset>
-        <legend className="mb-2 text-sm font-black text-slate-700">封禁模块</legend>
-        <div className="grid gap-2 sm:grid-cols-3">
-          {banModules.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => toggle(selectedModules, item, setSelectedModules)}
-              className={`h-11 rounded-md border px-3 text-sm font-black ${
-                selectedModules.includes(item)
-                  ? 'border-rose-500 bg-rose-50 text-rose-700'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      {isBanMode && (
+        <fieldset>
+          <legend className="mb-2 text-sm font-black text-slate-700">封禁模块</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {banModules.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => toggle(selectedModules, item, setSelectedModules)}
+                className={`h-11 rounded-md border px-3 text-sm font-black ${
+                  selectedModules.includes(item)
+                    ? 'border-rose-500 bg-rose-50 text-rose-700'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <label className="block space-y-1">
-        <span className="text-sm font-black text-slate-700">封禁原因</span>
+        <span className="text-sm font-black text-slate-700">{actionText}原因</span>
         <textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           className="min-h-20 w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-          placeholder="填写封禁原因（选填）"
+          placeholder={`填写${actionText}原因（选填）`}
         />
       </label>
 
-      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-800">
-        将按「{selectedDimensions.join('、')}」维度封禁「{selectedModules.join('、')}」模块。
+      <div className={`rounded-md border px-3 py-2 text-xs font-bold leading-5 ${
+        isBanMode ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+      }`}>
+        {isBanMode
+          ? `将按「${selectedDimensions.join('、')}」维度封禁「${selectedModules.join('、')}」模块。`
+          : `将按「${selectedDimensions.join('、')}」维度解除封禁，账号和设备维度可同时解封。`}
       </div>
     </ModalShell>
   );

@@ -37,6 +37,12 @@ export interface UserBanPayload {
   reason?: string;
 }
 
+/** 解封。 */
+export interface UserUnbanPayload {
+  userId: string;
+  dimensions: BanDimension[];
+}
+
 /** 基础信息字段更新 / 删除。 */
 export type EditableUserField =
   | 'name'
@@ -69,7 +75,7 @@ export type AdminAction =
   | { type: 'VOUCHER_GRANT'; payload: VoucherGrantPayload }
   | { type: 'WITHDRAW_REVIEW'; payload: WithdrawReviewPayload }
   | { type: 'USER_BAN'; payload: UserBanPayload }
-  | { type: 'USER_UNBAN'; payload: { userId: string } }
+  | { type: 'USER_UNBAN'; payload: UserUnbanPayload }
   | { type: 'USER_FIELD_UPDATE'; payload: { userId: string; field: EditableUserField; value: string } }
   | { type: 'USER_FIELD_DELETE'; payload: { userId: string; field: EditableUserField } }
   | { type: 'COMPANION_REVIEW'; payload: CompanionReviewPayload }

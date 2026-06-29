@@ -26,6 +26,7 @@ export function UserBasicInfo({
   const copy = useClipboard();
   const [showLinked, setShowLinked] = useState(false);
   const [showBan, setShowBan] = useState(false);
+  const [showUnban, setShowUnban] = useState(false);
   const [edit, setEdit] = useState<EditState>(null);
 
   const userLabel = `${user.id} / ${user.name}`;
@@ -57,10 +58,7 @@ export function UserBasicInfo({
               <ActionButton
                 icon={ShieldCheck}
                 label="解封"
-                onClick={() => {
-                  dispatch({ type: 'USER_UNBAN', payload: { userId: user.id } });
-                  toast('已解封账号', 'success');
-                }}
+                onClick={() => setShowUnban(true)}
               />
             ) : (
               <ActionButton icon={Ban} label="封禁" tone="danger" onClick={() => setShowBan(true)} />
@@ -121,11 +119,24 @@ export function UserBasicInfo({
       {showBan && (
         <BanConfigModal
           user={user}
+          mode="ban"
           onClose={() => setShowBan(false)}
           onConfirm={(payload) => {
             dispatch({ type: 'USER_BAN', payload: { userId: user.id, ...payload } });
             setShowBan(false);
             toast(`已封禁 ${user.name}`, 'success');
+          }}
+        />
+      )}
+      {showUnban && (
+        <BanConfigModal
+          user={user}
+          mode="unban"
+          onClose={() => setShowUnban(false)}
+          onConfirm={({ dimensions }) => {
+            dispatch({ type: 'USER_UNBAN', payload: { userId: user.id, dimensions } });
+            setShowUnban(false);
+            toast(`已按「${dimensions.join('、')}」维度解封 ${user.name}`, 'success');
           }}
         />
       )}

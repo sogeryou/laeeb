@@ -158,7 +158,15 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
     case 'USER_UNBAN': {
       const users = state.users.map((user) =>
         user.id === action.payload.userId
-          ? { ...user, status: '正常' as const, bans: [] }
+          ? (() => {
+              const bans = (user.bans ?? [])
+                .map((ban) => ({
+                  ...ban,
+                  dimensions: ban.dimensions.filter((dimension) => !action.payload.dimensions.includes(dimension)),
+                }))
+                .filter((ban) => ban.dimensions.length > 0);
+              return { ...user, status: bans.length > 0 ? user.status : '正常' as const, bans };
+            })()
           : user,
       );
       return { ...state, users };
