@@ -155,25 +155,7 @@ function AdminShell() {
             />
           )}
           {section === 'operations' && <OperationsSection activeTab={operationTab} />}
-          {section === 'companions' && (
-            <>
-              <div className="flex gap-2 overflow-x-auto rounded-md border border-slate-200 bg-white p-2">
-                {companionTabs.map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setCompanionTab(tab)}
-                    className={`h-10 shrink-0 rounded-md px-4 text-sm font-black ${
-                      companionTab === tab ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-              <CompanionSection activeTab={companionTab} />
-            </>
-          )}
+          {section === 'companions' && <CompanionSection activeTab={companionTab} />}
           {section === 'data' && <DataSection />}
           {section === 'risk' && <RiskSection />}
         </div>

@@ -25,6 +25,7 @@ export function CompanionSection({ activeTab }: { activeTab: CompanionSubTab }) 
 }
 
 const auditOptions = ['全部', '待审核', '已认证', '已拒绝', '已移除'];
+const statRangeOptions = ['当天', '当周', '当月', '历史'];
 const allServiceTypes = (rows: CompanionService[]) => ['全部', ...Array.from(new Set(rows.flatMap((row) => row.serviceItems.map((item) => item.category))))];
 const allLevels = (rows: CompanionService[]) => ['全部', ...Array.from(new Set(rows.map((row) => row.level)))];
 
@@ -34,6 +35,19 @@ function serviceTypeCount(row: CompanionService) {
 
 function matchesService(row: CompanionService, serviceType: string) {
   return serviceType === '全部' || row.serviceItems.some((item) => item.category === serviceType);
+}
+
+function formatNumber(value: number) {
+  return Math.round(value).toLocaleString('en-US');
+}
+
+function statRatio(range: string) {
+  return {
+    当天: 0.012,
+    当周: 0.08,
+    当月: 0.32,
+    历史: 1,
+  }[range] ?? 1;
 }
 
 /** 一级菜单：陪玩管理。 */
@@ -262,58 +276,91 @@ function CompanionDetailModal({
   onApprove?: () => void;
   onReject?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(row.serviceItems[0]?.category ?? '');
+  const { state } = useAdminStore();
   const categories = Array.from(new Set(row.serviceItems.map((item) => item.category)));
+  const initialCategory = serviceCategory ?? categories[0] ?? row.service;
+  const categoryOptions = mode === 'audit' && serviceCategory ? [serviceCategory] : (categories.length ? categories : [row.service]);
+  const [selectedRange, setSelectedRange] = useState('历史');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const companionStat = state.companionStats.find((item) => item.id === row.id);
+  const ratio = statRatio(selectedRange);
+  const orderDiamonds = Math.round((companionStat?.orderIncome ?? 0) * ratio);
+  const giftDiamonds = Math.round((companionStat?.giftIncome ?? 0) * ratio);
+  const totalDiamonds = orderDiamonds + giftDiamonds;
+  const receivedOrders = Math.round((companionStat?.completed ?? 0) * ratio);
+  const selectedItems = row.serviceItems.filter((item) => item.category === selectedCategory);
 
   return (
-    <ModalShell title={mode === 'manage' ? '陪玩资料' : '陪玩审核资料'} subtitle={`${row.id} / ${row.name}`} onClose={onClose} maxWidth="max-w-3xl">
-      <div className="grid gap-3 rounded-md bg-slate-50 p-3 sm:grid-cols-3">
-        <Metric label="段位" value={row.rank} />
-        <Metric label="平台" value={row.platform} />
-        <Metric label="陪玩等级" value={row.level} />
-        <Metric label="擅长位置" value={row.positions} />
-        <Metric label="风格" value={row.style} />
-        <Metric label="上传语音" value={row.voice} />
-      </div>
-
-      <section>
-        <h4 className="mb-2 text-sm font-black text-slate-700">截图材料</h4>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {row.screenshots.map((item) => (
-            <div key={item} className="grid aspect-video place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-sm font-black text-slate-500">
-              {item}
+    <ModalShell title={mode === 'manage' ? '陪玩资料' : '陪玩审核资料'} subtitle={`${row.id} / ${row.name}`} onClose={onClose} maxWidth="max-w-4xl">
+      {mode === 'manage' && (
+        <section className="rounded-md bg-slate-50 p-4">
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h4 className="text-sm font-black text-slate-800">陪玩经营数据</h4>
+            <div className="w-full sm:w-40">
+              <SelectInput value={selectedRange} onChange={setSelectedRange} options={statRangeOptions} />
             </div>
-          ))}
-        </div>
-      </section>
-
-      {mode === 'audit' ? (
-        <Metric label="服务项目" value={serviceCategory ?? row.service} />
-      ) : (
-        <section>
-          <h4 className="mb-2 text-sm font-black text-slate-700">已通过审核的服务项目</h4>
-          <div className="grid gap-2">
-            {categories.map((category) => (
-              <div key={category} className="rounded-md border border-slate-200">
-                <button type="button" onClick={() => setExpanded(expanded === category ? '' : category)} className="flex h-11 w-full items-center justify-between px-3 text-left text-sm font-black text-slate-800 hover:bg-slate-50">
-                  {category}
-                  <span className="text-xs text-slate-400">{expanded === category ? '收起' : '展开'}</span>
-                </button>
-                {expanded === category && (
-                  <div className="border-t border-slate-200 px-3 py-2">
-                    {row.serviceItems.filter((item) => item.category === category).map((item) => (
-                      <div key={`${item.category}-${item.name}`} className="flex items-center justify-between border-b border-slate-100 py-2 text-sm last:border-b-0">
-                        <span className="font-bold text-slate-700">{item.name}</span>
-                        <span className="font-black text-slate-950">{item.price}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Metric label="总收钻数" value={`${formatNumber(totalDiamonds)} 钻石`} />
+            <Metric label="订单收钻数" value={`${formatNumber(orderDiamonds)} 钻石`} />
+            <Metric label="礼物收钻数" value={`${formatNumber(giftDiamonds)} 钻石`} />
+            <Metric label="接单数" value={`${formatNumber(receivedOrders)} 单`} />
           </div>
         </section>
       )}
+
+      <section className="rounded-md border border-slate-200 p-4">
+        <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_220px] sm:items-center">
+          <h4 className="text-sm font-black text-slate-800">{mode === 'manage' ? '服务资料' : '提交资料'}</h4>
+          <SelectInput value={selectedCategory} onChange={setSelectedCategory} options={categoryOptions} />
+        </div>
+
+        <div className="grid gap-3 rounded-md bg-slate-50 p-3 sm:grid-cols-2 xl:grid-cols-3">
+          <Metric label="服务项目" value={selectedCategory} />
+          <Metric label="段位" value={row.rank} />
+          <Metric label="平台" value={row.platform} />
+          <Metric label="陪玩等级" value={row.level} />
+          <Metric label="擅长位置" value={row.positions} />
+          <Metric label="风格" value={row.style} />
+        </div>
+
+        {mode === 'manage' && (
+          <div className="mt-4">
+            <h5 className="mb-2 text-xs font-black text-slate-500">服务子项与价格</h5>
+            <div className="divide-y divide-slate-100 rounded-md border border-slate-200">
+              {selectedItems.map((item) => (
+                <div key={`${item.category}-${item.name}`} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <span className="font-bold text-slate-700">{item.name}</span>
+                  <span className="font-black text-slate-950">{item.price}</span>
+                </div>
+              ))}
+              {selectedItems.length === 0 && (
+                <div className="px-3 py-2 text-sm font-bold text-slate-400">暂无该服务下的子项目</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_220px]">
+          <div>
+            <h5 className="mb-2 text-xs font-black text-slate-500">截图材料</h5>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {row.screenshots.map((item) => (
+                <div key={item} className="grid aspect-video place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-sm font-black text-slate-500">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h5 className="mb-2 text-xs font-black text-slate-500">上传音频</h5>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-black text-slate-800">{row.voice}</p>
+              <audio controls className="mt-3 w-full" src={row.voice} />
+            </div>
+          </div>
+        </div>
+      </section>
 
       {mode === 'audit' && (
         <div className="flex flex-wrap gap-2">
