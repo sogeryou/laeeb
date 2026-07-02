@@ -64,6 +64,11 @@ export interface CompanionReviewPayload {
   price?: string;
 }
 
+/** 手动添加陪玩。 */
+export interface CompanionAddPayload {
+  userId: string;
+}
+
 /** 纠纷处置。 */
 export interface DisputeResolvePayload {
   id: string;
@@ -82,6 +87,7 @@ export type AdminAction =
   | { type: 'USER_FIELD_UPDATE'; payload: { userId: string; field: EditableUserField; value: string } }
   | { type: 'USER_FIELD_DELETE'; payload: { userId: string; field: EditableUserField } }
   | { type: 'COMPANION_REVIEW'; payload: CompanionReviewPayload }
+  | { type: 'COMPANION_ADD'; payload: CompanionAddPayload }
   | { type: 'DISPUTE_RESOLVE'; payload: DisputeResolvePayload }
   | { type: 'RISK_HANDLE'; payload: { id: string; ban: boolean } };
 

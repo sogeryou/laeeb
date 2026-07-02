@@ -4,6 +4,7 @@ import {
   BarChart3,
   Gamepad2,
   LayoutDashboard,
+  Sparkles,
   ShieldAlert,
   ShieldCheck,
   Users,
@@ -13,14 +14,17 @@ import { AdminStoreProvider } from './store/AdminStoreContext';
 import { useAdminStore } from './store/useAdminStore';
 import { AccountsSection } from './sections/accounts/AccountsSection';
 import { OperationsSection, type OperationTab, operationTabs } from './sections/operations/OperationsSection';
+import { CompanionSection, companionTabs } from './sections/operations/CompanionOpsPanel';
 import { DataSection } from './sections/data/DataSection';
 import { RiskSection } from './sections/risk/RiskSection';
 
-type AdminSection = 'accounts' | 'operations' | 'data' | 'risk';
+type AdminSection = 'accounts' | 'operations' | 'companions' | 'data' | 'risk';
+type CompanionTab = (typeof companionTabs)[number];
 
 const navItems = [
   { id: 'accounts' as const, label: '账号管理', icon: Users },
   { id: 'operations' as const, label: '后台操作', icon: ShieldCheck },
+  { id: 'companions' as const, label: '陪玩管理', icon: Sparkles },
   { id: 'data' as const, label: '数据系统', icon: BarChart3 },
   { id: 'risk' as const, label: '风控监控', icon: ShieldAlert },
 ];
@@ -29,6 +33,7 @@ function AdminShell() {
   const { state } = useAdminStore();
   const [section, setSection] = useState<AdminSection>('accounts');
   const [operationTab, setOperationTab] = useState<OperationTab>('资产管理');
+  const [companionTab, setCompanionTab] = useState<CompanionTab>('陪玩管理');
   const [selectedUserId, setSelectedUserId] = useState(state.users[0]?.id ?? '');
 
   const pendingWithdrawals = state.withdrawals.filter((w) => w.status === '待审核').length;
@@ -71,6 +76,24 @@ function AdminShell() {
                       }}
                       className={`flex h-9 w-full items-center rounded-md px-3 text-left text-xs font-black transition ${
                         operationTab === tab ? 'bg-slate-950 text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {item.id === 'companions' && section === 'companions' && (
+                <div className="mt-1 space-y-1 pl-7">
+                  {companionTabs.map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => {
+                        setSection('companions');
+                        setCompanionTab(tab);
+                      }}
+                      className={`flex h-9 w-full items-center rounded-md px-3 text-left text-xs font-black transition ${
+                        companionTab === tab ? 'bg-slate-950 text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950'
                       }`}
                     >
                       {tab}
@@ -132,6 +155,25 @@ function AdminShell() {
             />
           )}
           {section === 'operations' && <OperationsSection activeTab={operationTab} />}
+          {section === 'companions' && (
+            <>
+              <div className="flex gap-2 overflow-x-auto rounded-md border border-slate-200 bg-white p-2">
+                {companionTabs.map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setCompanionTab(tab)}
+                    className={`h-10 shrink-0 rounded-md px-4 text-sm font-black ${
+                      companionTab === tab ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              <CompanionSection activeTab={companionTab} />
+            </>
+          )}
           {section === 'data' && <DataSection />}
           {section === 'risk' && <RiskSection />}
         </div>

@@ -215,13 +215,64 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
 
     case 'COMPANION_REVIEW': {
       const { id, action: act, service, price } = action.payload;
+      const nextAudit = act === '审核通过'
+        ? '已认证'
+        : act === '审核驳回'
+          ? '已拒绝'
+          : act === '移除陪玩'
+            ? '已移除'
+            : undefined;
       const companionServices = replaceById(state.companionServices, id, (item): CompanionService => {
-        if (act === '审核通过') return { ...item, audit: '已认证' };
-        if (act === '审核驳回') return { ...item, audit: '资料复审' };
-        if (act === '移除陪玩') return { ...item, audit: '已移除' };
+        if (nextAudit) return { ...item, audit: nextAudit };
         return { ...item, service: service ?? item.service, price: price ?? item.price };
       });
-      return { ...state, companionServices };
+      const companionStats = nextAudit
+        ? replaceById(state.companionStats, id, (item): CompanionStat => ({ ...item, audit: nextAudit }))
+        : state.companionStats;
+      return { ...state, companionServices, companionStats };
+    }
+
+    case 'COMPANION_ADD': {
+      const { userId } = action.payload;
+      if (state.companionServices.some((item) => item.id === userId)) return state;
+      const user = state.users.find((item) => item.id === userId);
+      if (!user) return state;
+      const companion: CompanionService = {
+        id: user.id,
+        name: user.name,
+        audit: '已认证',
+        service: '语音聊天',
+        price: '60 金币/30分钟',
+        level: '待评定',
+        rank: '待补充',
+        platform: user.device.split(' / ')[0] || '待补充',
+        positions: '待补充',
+        style: '待补充',
+        screenshots: ['运营手动添加'],
+        voice: '待上传',
+        serviceItems: [
+          { category: '语音聊天', name: '基础陪聊', price: '60 金币/30分钟' },
+        ],
+      };
+      const companionStat: CompanionStat = {
+        id: user.id,
+        name: user.name,
+        services: 1,
+        completed: 0,
+        disputes: 0,
+        rating: '待积累',
+        orderIncome: 0,
+        giftIncome: 0,
+        visitors: 0,
+        audit: '已认证',
+      };
+      const users = state.users.map((item) => item.id === user.id ? { ...item, role: '陪玩' as const } : item);
+      return {
+        ...state,
+        users,
+        companionServices: [companion, ...state.companionServices],
+        companionStats: [companionStat, ...state.companionStats],
+      };
     }
 
     case 'DISPUTE_RESOLVE': {
