@@ -24,7 +24,7 @@ export const mockCompanionServices: CompanionService[] = [
   {
     id: 'U10104',
     name: 'Aria_Flow',
-    audit: '资料复审',
+    audit: '待审核',
     service: 'PUBG Mobile',
     price: '80 金币/局',
     level: 'A',
@@ -63,6 +63,6 @@ export const mockCompanionServices: CompanionService[] = [
 /** [MOCK] 陪玩经营统计（docx §3 陪玩数据）。 */
 export const mockCompanionStats: CompanionStat[] = [
   { id: 'U10082', name: 'Lumina_Sky', services: 7, completed: 324, disputes: 2, rating: '5.0 (842)', orderIncome: 48200, giftIncome: 13600, visitors: 18420, audit: '已认证' },
-  { id: 'U10104', name: 'Aria_Flow', services: 5, completed: 218, disputes: 5, rating: '4.8 (516)', orderIncome: 36100, giftIncome: 8700, visitors: 12940, audit: '资料复审' },
+  { id: 'U10104', name: 'Aria_Flow', services: 5, completed: 218, disputes: 5, rating: '4.8 (516)', orderIncome: 36100, giftIncome: 8700, visitors: 12940, audit: '待审核' },
   { id: 'U10220', name: 'MenaCarry', services: 3, completed: 0, disputes: 0, rating: '待积累', orderIncome: 0, giftIncome: 0, visitors: 420, audit: '待审核' },
 ];

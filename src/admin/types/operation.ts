@@ -34,7 +34,7 @@ export interface AssetOperation {
 export interface CompanionService {
   id: string;
   name: string;
-  audit: '已认证' | '资料复审' | '待审核' | '已拒绝' | '已移除';
+  audit: '已认证' | '待审核' | '已拒绝' | '已移除';
   service: string;
   price: string;
   level: string;

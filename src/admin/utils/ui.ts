@@ -32,7 +32,6 @@ export const statusClass: Record<string, string> = {
   已通过: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   已认证: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   已拒绝: 'border-rose-200 bg-rose-50 text-rose-700',
-  资料复审: 'border-sky-200 bg-sky-50 text-sky-700',
   已完成: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   已处理: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   纠纷中: 'border-rose-200 bg-rose-50 text-rose-700',
