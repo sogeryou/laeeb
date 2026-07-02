@@ -43,6 +43,7 @@ jobs:
           mkdir -p dist/admin
           cp dist/index.html dist/admin/index.html
           touch dist/.nojekyll
+          printf "%s\n" "${GITHUB_SHA}" > dist/deployment-version.txt
           rm -f dist/server.cjs dist/server.cjs.map
 
       - name: Upload artifact
