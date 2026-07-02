@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { CreditCard, Download } from 'lucide-react';
 import { Badge, DataTable, Field, Metric, MiniActionButton, ModalShell, Panel, SelectInput, TextInput } from '../../components';
 import { useToast } from '../../components/Toast';
@@ -15,12 +15,36 @@ export function WithdrawalReviewPanel() {
   const { state, dispatch } = useAdminStore();
   const { toast } = useToast();
   const [actionRow, setActionRow] = useState<WithdrawalRow | null>(null);
+  const [draftUserId, setDraftUserId] = useState('');
+  const [draftOrderId, setDraftOrderId] = useState('');
+  const [userId, setUserId] = useState('');
+  const [orderId, setOrderId] = useState('');
 
   const q = useTableQuery<WithdrawalRow>(state.withdrawals, {
     statusKey: 'status',
     dateKey: 'requestedAt',
-    searchKeys: ['userId', 'userName', 'orderId'],
+    extra: (row) => {
+      const userNeedle = userId.trim().toLowerCase();
+      const orderNeedle = orderId.trim().toLowerCase();
+      if (userNeedle && !row.userId.toLowerCase().includes(userNeedle)) return false;
+      if (orderNeedle && !row.orderId.toLowerCase().includes(orderNeedle)) return false;
+      return true;
+    },
   });
+
+  const runSearch = () => {
+    setUserId(draftUserId);
+    setOrderId(draftOrderId);
+    q.setPage(1);
+  };
+
+  const resetFilters = () => {
+    setDraftUserId('');
+    setDraftOrderId('');
+    setUserId('');
+    setOrderId('');
+    q.reset();
+  };
 
   const handleExport = () =>
     exportCsv(
@@ -41,9 +65,12 @@ export function WithdrawalReviewPanel() {
         </button>
       }
     >
-      <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[1.2fr_1fr_1fr_auto]">
-        <Field label="搜索（ID/用户名/订单ID）">
-          <TextInput value={q.keyword} onChange={q.setKeyword} placeholder="输入关键字" />
+      <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+        <Field label="用户ID">
+          <TextInput value={draftUserId} onChange={setDraftUserId} placeholder="查询用户ID" />
+        </Field>
+        <Field label="订单ID">
+          <TextInput value={draftOrderId} onChange={setDraftOrderId} placeholder="查询订单ID" />
         </Field>
         <Field label="提现状态">
           <SelectInput value={q.status} onChange={q.setStatus} options={statusOptions} />
@@ -51,8 +78,11 @@ export function WithdrawalReviewPanel() {
         <Field label="申请日期(起)">
           <TextInput type="date" value={q.dateRange.start ?? ''} onChange={(v) => q.setDateRange({ ...q.dateRange, start: v })} />
         </Field>
-        <div className="flex items-end">
-          <button type="button" onClick={q.reset} className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 hover:bg-slate-50">
+        <div className="flex items-end gap-2">
+          <button type="button" onClick={runSearch} className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-black text-white hover:bg-emerald-800">
+            查询
+          </button>
+          <button type="button" onClick={resetFilters} className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 hover:bg-slate-50">
             重置
           </button>
         </div>
@@ -79,7 +109,7 @@ export function WithdrawalReviewPanel() {
         ])}
         minWidth={1200}
         emptyText="暂无符合条件的提现申请"
-        pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage }}
+        pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}
       />
 
       {actionRow && (
@@ -104,11 +134,9 @@ function WithdrawalActionModal({
 }: {
   row: WithdrawalRow;
   onClose: () => void;
-  onConfirm: (decision: '审核通过' | '审核拒绝' | '转入复核') => void;
+  onConfirm: (decision: '审核通过' | '审核拒绝') => void;
 }) {
-  const [action, setAction] = useState<'审核通过' | '审核拒绝' | '转入复核'>(
-    row.status === '复核中' ? '转入复核' : '审核通过',
-  );
+  const [action, setAction] = useState<'审核通过' | '审核拒绝'>('审核通过');
 
   return (
     <ModalShell
@@ -127,8 +155,8 @@ function WithdrawalActionModal({
 
       <fieldset>
         <legend className="mb-2 text-sm font-black text-slate-700">审核结果</legend>
-        <div className="grid gap-2 sm:grid-cols-3">
-          {(['审核通过', '审核拒绝', '转入复核'] as const).map((item) => (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(['审核通过', '审核拒绝'] as const).map((item) => (
             <button
               key={item}
               type="button"
@@ -147,7 +175,7 @@ function WithdrawalActionModal({
         <span className="text-sm font-black text-slate-700">审核备注</span>
         <textarea
           className="min-h-24 w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-          placeholder="填写通过原因、拒绝原因或复核说明"
+          placeholder="填写通过原因或拒绝原因"
         />
       </label>
     </ModalShell>

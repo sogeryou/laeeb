@@ -1,22 +1,103 @@
 import { useState } from 'react';
-import { MessageSquareWarning } from 'lucide-react';
+import { Download, MessageSquareWarning } from 'lucide-react';
 import { Badge, DataTable, Field, Metric, MiniActionButton, ModalShell, Panel, TextInput } from '../../components';
 import { useToast } from '../../components/Toast';
+import { useTableQuery } from '../../hooks/useTableQuery';
 import { useAdminStore } from '../../store/useAdminStore';
 import type { DisputeResolvePayload } from '../../store/actions';
 import type { DisputeOrder } from '../../types';
+import { exportXlsx } from '../../utils/exportXlsx';
 
 /** 纠纷管理（docx §2.D：举报审核、订单纠纷审核）。 */
 export function OrderDisputePanel() {
   const { state, dispatch } = useAdminStore();
   const { toast } = useToast();
   const [reviewOrder, setReviewOrder] = useState<DisputeOrder | null>(null);
+  const [draftUserId, setDraftUserId] = useState('');
+  const [draftEpalId, setDraftEpalId] = useState('');
+  const [draftOrderId, setDraftOrderId] = useState('');
+  const [userId, setUserId] = useState('');
+  const [epalId, setEpalId] = useState('');
+  const [orderId, setOrderId] = useState('');
+
+  const q = useTableQuery<DisputeOrder>(state.disputes, {
+    extra: (row) => {
+      const userNeedle = userId.trim().toLowerCase();
+      const epalNeedle = epalId.trim().toLowerCase();
+      const orderNeedle = orderId.trim().toLowerCase();
+      if (userNeedle && !row.userId.toLowerCase().includes(userNeedle)) return false;
+      if (epalNeedle && !row.epalId.toLowerCase().includes(epalNeedle)) return false;
+      if (orderNeedle && !row.orderId.toLowerCase().includes(orderNeedle)) return false;
+      return true;
+    },
+  });
+
+  const runSearch = () => {
+    setUserId(draftUserId);
+    setEpalId(draftEpalId);
+    setOrderId(draftOrderId);
+    q.setPage(1);
+  };
+
+  const resetFilters = () => {
+    setDraftUserId('');
+    setDraftEpalId('');
+    setDraftOrderId('');
+    setUserId('');
+    setEpalId('');
+    setOrderId('');
+    q.reset();
+  };
+
+  const handleExport = () => {
+    exportXlsx('订单纠纷管理.xlsx', ['时间', '订单ID', '陪玩ID', '陪玩昵称', '用户ID', '用户昵称', '服务类型', '订单单价', '数量', '订单总价', '状态'], q.filtered.map((row) => [
+      row.time,
+      row.orderId,
+      row.epalId,
+      row.epalName,
+      row.userId,
+      row.userName,
+      row.serviceType,
+      row.unitPrice,
+      row.quantity,
+      row.total,
+      row.status,
+    ]));
+  };
 
   return (
-    <Panel title="订单管理" icon={MessageSquareWarning}>
+    <Panel
+      title="订单纠纷管理"
+      icon={MessageSquareWarning}
+      action={
+        <button onClick={handleExport} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 hover:bg-slate-50">
+          <Download className="size-4" /> 导出
+        </button>
+      }
+    >
+      <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
+        <Field label="用户ID">
+          <TextInput value={draftUserId} onChange={setDraftUserId} placeholder="查询用户ID" />
+        </Field>
+        <Field label="陪玩ID">
+          <TextInput value={draftEpalId} onChange={setDraftEpalId} placeholder="查询陪玩ID" />
+        </Field>
+        <Field label="订单ID">
+          <TextInput value={draftOrderId} onChange={setDraftOrderId} placeholder="查询订单ID" />
+        </Field>
+        <div className="flex items-end gap-2">
+          <button type="button" onClick={runSearch} className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-black text-white hover:bg-emerald-800">
+            查询
+          </button>
+          <button type="button" onClick={resetFilters} className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 hover:bg-slate-50">
+            重置
+          </button>
+        </div>
+      </div>
+
       <DataTable
         columns={['时间', '订单ID', '陪玩ID', '陪玩昵称', '用户ID', '用户昵称', '服务类型', '订单单价', '数量', '订单总价', '状态', '操作']}
-        rows={state.disputes.map((row) => [
+        rows={q.pageItems.map((row) => [
           row.time,
           row.orderId,
           row.epalId,
@@ -34,6 +115,7 @@ export function OrderDisputePanel() {
         ])}
         minWidth={1100}
         emptyText="暂无纠纷订单"
+        pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}
       />
 
       {reviewOrder && (

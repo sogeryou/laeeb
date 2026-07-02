@@ -27,7 +27,7 @@ export interface VoucherGrantPayload {
 /** 提现审核处置。 */
 export interface WithdrawReviewPayload {
   id: string;
-  decision: '审核通过' | '审核拒绝' | '转入复核';
+  decision: '审核通过' | '审核拒绝';
   note?: string;
 }
 
@@ -89,5 +89,4 @@ export type AdminAction =
 export const withdrawDecisionStatus: Record<WithdrawReviewPayload['decision'], WithdrawalStatus> = {
   审核通过: '已通过',
   审核拒绝: '已拒绝',
-  转入复核: '复核中',
 };
