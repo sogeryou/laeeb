@@ -12,13 +12,14 @@ import {
 import { ToastProvider } from './components/Toast';
 import { AdminStoreProvider } from './store/AdminStoreContext';
 import { useAdminStore } from './store/useAdminStore';
-import { AccountsSection } from './sections/accounts/AccountsSection';
+import { AccountsSection, accountTabs, type AccountTab } from './sections/accounts/AccountsSection';
 import { OperationsSection, type OperationTab, operationTabs } from './sections/operations/OperationsSection';
 import { CompanionSection, companionTabs } from './sections/operations/CompanionOpsPanel';
 import { DataSection } from './sections/data/DataSection';
 import { RiskSection } from './sections/risk/RiskSection';
 
 type AdminSection = 'accounts' | 'operations' | 'companions' | 'data' | 'risk';
+type AccountTabState = AccountTab;
 type CompanionTab = (typeof companionTabs)[number];
 
 const navItems = [
@@ -32,9 +33,11 @@ const navItems = [
 function AdminShell() {
   const { state } = useAdminStore();
   const [section, setSection] = useState<AdminSection>('accounts');
+  const [accountTab, setAccountTab] = useState<AccountTabState>('用户信息');
   const [operationTab, setOperationTab] = useState<OperationTab>('资产管理');
   const [companionTab, setCompanionTab] = useState<CompanionTab>('陪玩管理');
   const [selectedUserId, setSelectedUserId] = useState(state.users[0]?.id ?? '');
+  const [selectedDeviceId, setSelectedDeviceId] = useState(state.users[0]?.did ?? '');
 
   const pendingWithdrawals = state.withdrawals.filter((w) => w.status === '待审核').length;
   const pendingDisputes = state.disputes.filter((d) => d.status !== '已处理').length;
@@ -76,6 +79,24 @@ function AdminShell() {
                       }}
                       className={`flex h-9 w-full items-center rounded-md px-3 text-left text-xs font-black transition ${
                         operationTab === tab ? 'bg-slate-950 text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {item.id === 'accounts' && section === 'accounts' && (
+                <div className="mt-1 space-y-1 pl-7">
+                  {accountTabs.map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => {
+                        setSection('accounts');
+                        setAccountTab(tab);
+                      }}
+                      className={`flex h-9 w-full items-center rounded-md px-3 text-left text-xs font-black transition ${
+                        accountTab === tab ? 'bg-slate-950 text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950'
                       }`}
                     >
                       {tab}
@@ -147,9 +168,17 @@ function AdminShell() {
         <div className="space-y-5 px-4 py-5 xl:px-8">
           {section === 'accounts' && (
             <AccountsSection
+              activeTab={accountTab}
               selectedUserId={selectedUserId}
+              selectedDeviceId={selectedDeviceId}
               onSelectUser={(userId) => {
                 setSelectedUserId(userId);
+                setAccountTab('用户信息');
+                setSection('accounts');
+              }}
+              onSelectDevice={(deviceId) => {
+                setSelectedDeviceId(deviceId);
+                setAccountTab('设备信息');
                 setSection('accounts');
               }}
             />

@@ -9,7 +9,6 @@ import type { AdminUser } from '../../types';
 import { formatNumber } from '../../utils/format';
 import { BanConfigModal } from './modals/BanConfigModal';
 import { EditFieldModal } from './modals/EditFieldModal';
-import { LinkedAccountsModal } from './modals/LinkedAccountsModal';
 
 type EditState = { field: EditableUserField; label: string; value: string } | null;
 const defaultAvatarSvg = encodeURIComponent(`
@@ -24,24 +23,20 @@ const defaultAvatarUrl = `data:image/svg+xml;charset=UTF-8,${defaultAvatarSvg}`;
 /** 用户基础信息面板（docx §1.A + §2.B 修改/删减 + 封禁/解封）。 */
 export function UserBasicInfo({
   user,
-  onSelectUser,
+  onSelectDevice,
 }: {
   user: AdminUser;
-  onSelectUser: (userId: string) => void;
+  onSelectDevice: (deviceId: string) => void;
 }) {
   const { state, dispatch } = useAdminStore();
   const { toast } = useToast();
   const copy = useClipboard();
-  const [showLinked, setShowLinked] = useState(false);
   const [showBan, setShowBan] = useState(false);
   const [showUnban, setShowUnban] = useState(false);
   const [showPhoneEdit, setShowPhoneEdit] = useState(false);
   const [edit, setEdit] = useState<EditState>(null);
 
   const userLabel = `${user.id} / ${user.name}`;
-  const linkedUsers = (state.linkedAccountIds[user.id] ?? [])
-    .map((id) => state.users.find((u) => u.id === id))
-    .filter((u): u is AdminUser => Boolean(u));
   const phone = splitPhone(user.phone);
   const avatarSrc = user.avatar || defaultAvatarUrl;
 
@@ -94,12 +89,11 @@ export function UserBasicInfo({
             <InfoItem label="绑定邮箱" value={user.email} onEdit={() => openEdit('email', '绑定邮箱', user.email)} onDelete={() => deleteField('email', '绑定邮箱')} />
             <InfoItem label="IP" value={user.ip} onCopy={() => copy(user.ip, 'IP')} />
             <InfoItem label="设备型号" value={user.device.split(' / ')[0]} />
-            <InfoItem label="DID" value={user.did} onCopy={() => copy(user.did, 'DID')} />
             <InfoItem
-              label="设备登录账号"
-              value={`${linkedUsers.length || user.linkedAccounts} 个（该设备登录过）`}
-              actionLabel="查看账号"
-              onAction={() => setShowLinked(true)}
+              label="设备号"
+              value={user.did}
+              onCopy={() => copy(user.did, '设备号')}
+              onValueClick={() => onSelectDevice(user.did)}
             />
             <InfoItem label="版本信息" value={user.version} />
             <InfoItem label="注册sim卡" value={user.simCard} />
@@ -109,17 +103,6 @@ export function UserBasicInfo({
         </div>
       </div>
 
-      {showLinked && (
-        <LinkedAccountsModal
-          currentUser={user}
-          linkedUsers={linkedUsers}
-          onClose={() => setShowLinked(false)}
-          onSelect={(userId) => {
-            onSelectUser(userId);
-            setShowLinked(false);
-          }}
-        />
-      )}
       {showBan && (
         <BanConfigModal
           user={user}
@@ -246,6 +229,7 @@ function InfoItem({
   onCopy,
   onEdit,
   onDelete,
+  onValueClick,
   actionLabel,
   onAction,
 }: {
@@ -257,6 +241,7 @@ function InfoItem({
   onCopy?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onValueClick?: () => void;
   actionLabel?: string;
   onAction?: () => void;
 }) {
@@ -264,9 +249,19 @@ function InfoItem({
     <div className="grid min-h-9 gap-2 border-b border-slate-100 pb-2 md:grid-cols-[128px_minmax(0,1fr)]">
       <p className="text-sm font-black leading-6 text-slate-400">{label}</p>
       <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className={`min-w-0 text-sm font-black leading-6 text-slate-900 ${noWrap ? 'whitespace-nowrap' : 'break-words'}`}>
-          {badge ? <Badge label={value} /> : <span className={highlight ? 'text-blue-600' : ''}>{value || '—'}</span>}
-        </div>
+        {onValueClick ? (
+          <button
+            type="button"
+            onClick={onValueClick}
+            className={`min-w-0 text-left text-sm font-black leading-6 text-emerald-700 hover:underline ${noWrap ? 'whitespace-nowrap' : 'break-words'}`}
+          >
+            {value || '—'}
+          </button>
+        ) : (
+          <div className={`min-w-0 text-sm font-black leading-6 text-slate-900 ${noWrap ? 'whitespace-nowrap' : 'break-words'}`}>
+            {badge ? <Badge label={value} /> : <span className={highlight ? 'text-blue-600' : ''}>{value || '—'}</span>}
+          </div>
+        )}
         <div className="flex shrink-0 items-center gap-0.5">
           {onCopy && <IconMiniButton label={`复制${label}`} icon={Copy} onClick={onCopy} />}
           {onEdit && <IconMiniButton label={`修改${label}`} icon={Edit3} onClick={onEdit} />}
