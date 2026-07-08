@@ -56,6 +56,46 @@ const bucketKey = (time: string, granularity: DashboardGranularity) => {
 
 const sortKey = (key: string) => key.split('~')[0];
 
+const allDataDays = (state: AdminState): string[] => [
+  ...state.rechargeRecords.map((item) => toDateKey(item.time)),
+  ...state.withdrawals.map((item) => toDateKey(item.requestedAt)),
+  ...state.users.map((item) => toDateKey(item.registeredAt)),
+  ...state.orders.map((item) => toDateKey(item.time)),
+  ...state.ledgers.map((item) => toDateKey(item.time)),
+].filter(Boolean);
+
+const resolveRange = (state: AdminState, start: string, end: string) => {
+  const days = allDataDays(state).sort((a, b) => a.localeCompare(b));
+  const resolvedStart = start || days[0] || toInputDate(new Date());
+  const resolvedEnd = end || days.at(-1) || resolvedStart;
+  return resolvedStart <= resolvedEnd
+    ? { start: resolvedStart, end: resolvedEnd }
+    : { start: resolvedEnd, end: resolvedStart };
+};
+
+const monthStart = (day: string) => `${day.slice(0, 7)}-01`;
+
+const rangeBucketKeys = (state: AdminState, start: string, end: string, granularity: DashboardGranularity) => {
+  const range = resolveRange(state, start, end);
+  const keys = new Set<string>();
+  const cursor = toDate(granularity === 'month' ? monthStart(range.start) : range.start);
+  const endDate = toDate(range.end);
+
+  if (granularity === 'month') {
+    while (cursor <= endDate) {
+      keys.add(toInputDate(cursor).slice(0, 7));
+      cursor.setMonth(cursor.getMonth() + 1, 1);
+    }
+    return Array.from(keys).sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
+  }
+
+  while (cursor <= endDate) {
+    keys.add(bucketKey(toInputDate(cursor), granularity));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return Array.from(keys).sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
+};
+
 const inRange = (time: string, start: string, end: string): boolean => {
   const day = toDateKey(time);
   return (!start || day >= start) && (!end || day <= end);
@@ -70,6 +110,9 @@ const addToBucket = (rows: Map<string, DashboardMetricRow>, key: string) => {
 export function buildDashboardRows(state: AdminState, start = '', end = '', granularity: DashboardGranularity = 'day'): DashboardMetricRow[] {
   const byBucket = new Map<string, DashboardMetricRow>();
   const orderUsersByBucket = new Map<string, Set<string>>();
+  rangeBucketKeys(state, start, end, granularity).forEach((key) => {
+    byBucket.set(key, emptyMetricRow(key));
+  });
 
   state.rechargeRecords.filter((item) => inRange(item.time, start, end)).forEach((item) => {
     addToBucket(byBucket, bucketKey(item.time, granularity)).rechargeCoins += item.coinsTotal;
@@ -130,13 +173,7 @@ export function buildDashboardTotal(state: AdminState, start = '', end = ''): Da
 }
 
 export function latestDashboardDay(state: AdminState): string {
-  const days = [
-    ...state.rechargeRecords.map((item) => toDateKey(item.time)),
-    ...state.withdrawals.map((item) => toDateKey(item.requestedAt)),
-    ...state.users.map((item) => toDateKey(item.registeredAt)),
-    ...state.orders.map((item) => toDateKey(item.time)),
-    ...state.ledgers.map((item) => toDateKey(item.time)),
-  ].filter(Boolean);
+  const days = allDataDays(state);
   return days.sort((a, b) => b.localeCompare(a))[0] ?? toInputDate(new Date());
 }
 
