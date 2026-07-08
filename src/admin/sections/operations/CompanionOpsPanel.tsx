@@ -329,10 +329,12 @@ function CompanionDetailModal({
       )}
 
       <section className="rounded-md border border-slate-200 p-4">
-        <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_220px] sm:items-center">
-          <h4 className="text-sm font-black text-slate-800">{mode === 'manage' ? '服务资料' : '提交资料'}</h4>
-          <SelectInput value={selectedCategory} onChange={setSelectedCategory} options={categoryOptions} />
-        </div>
+        {mode === 'manage' && (
+          <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_220px] sm:items-center">
+            <h4 className="text-sm font-black text-slate-800">服务资料</h4>
+            <SelectInput value={selectedCategory} onChange={setSelectedCategory} options={categoryOptions} />
+          </div>
+        )}
 
         <div className="grid gap-3 rounded-md bg-slate-50 p-3 sm:grid-cols-2 xl:grid-cols-3">
           <Metric label="服务项目" value={selectedCategory} />
