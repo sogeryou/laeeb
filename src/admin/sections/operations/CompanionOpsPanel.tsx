@@ -348,10 +348,10 @@ function CompanionDetailModal({
           </div>
         )}
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_220px]">
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,360px)_minmax(260px,1fr)]">
           <div>
             <h5 className="mb-2 text-xs font-black text-slate-500">截图材料</h5>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
               {row.screenshots.slice(0, 1).map((item) => (
                 <div key={item} className="grid aspect-video place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-sm font-black text-slate-500">
                   {item}
