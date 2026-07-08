@@ -15,7 +15,7 @@ import { useAdminStore } from '../../store/useAdminStore';
 import { exportXlsx } from '../../utils/exportXlsx';
 import { formatNumber } from '../../utils/format';
 import { CompanionDataTable, OrderDataTable, RechargeDataTable, WithdrawDataTable } from './DataTables';
-import { buildDashboardRows, buildDashboardTotal, type DashboardMetricRow, type DataViewMode } from './dataDashboard';
+import { buildDashboardRows, buildDashboardTotal, quickDashboardRange, type DashboardMetricRow, type DataViewMode, type QuickRange } from './dataDashboard';
 
 export const dataTabs = ['大盘数据', '明细数据'] as const;
 export type DataTab = (typeof dataTabs)[number];
@@ -67,6 +67,11 @@ function DashboardDataPanel() {
   const dailyRows = useMemo(() => buildDashboardRows(state, start, end), [state, start, end]);
   const total = useMemo(() => buildDashboardTotal(state, start, end), [state, start, end]);
   const exportRows = viewMode === '合计' ? [total] : dailyRows;
+  const applyQuickRange = (range: QuickRange) => {
+    const next = quickDashboardRange(state, range);
+    setStart(next.start);
+    setEnd(next.end);
+  };
 
   const handleExport = () => {
     exportXlsx(
@@ -78,7 +83,7 @@ function DashboardDataPanel() {
 
   return (
     <Panel title="大盘数据" icon={BarChart3}>
-      <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[180px_1fr_1fr_auto]">
+      <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 xl:grid-cols-[180px_1fr_1fr_auto_auto]">
         <Field label="展示维度">
           <SelectInput value={viewMode} onChange={(value) => setViewMode(value as DataViewMode)} options={['合计', '按天']} />
         </Field>
@@ -88,6 +93,18 @@ function DashboardDataPanel() {
         <Field label="结束日期">
           <TextInput type="date" value={end} onChange={setEnd} />
         </Field>
+        <div className="flex items-end gap-2">
+          {(['当天', '本周', '本月'] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => applyQuickRange(item)}
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 hover:bg-slate-50"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
         <div className="flex items-end gap-2">
           <button
             type="button"

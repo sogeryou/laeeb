@@ -14,6 +14,8 @@ export interface DashboardMetricRow {
   giftSpendCoins: number;
 }
 
+export type QuickRange = '当天' | '本周' | '本月';
+
 const emptyMetricRow = (day = '合计'): DashboardMetricRow => ({
   day,
   rechargeCoins: 0,
@@ -27,6 +29,16 @@ const emptyMetricRow = (day = '合计'): DashboardMetricRow => ({
 });
 
 export const toDateKey = (value: string): string => value.slice(0, 10);
+
+const toDate = (day: string) => {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(year, month - 1, date);
+};
+
+const toInputDate = (date: Date) => {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
 
 const inRange = (time: string, start: string, end: string): boolean => {
   const day = toDateKey(time);
@@ -78,7 +90,7 @@ export function buildDashboardRows(state: AdminState, start = '', end = ''): Das
     addToDay(byDay, day).orderUsers = users.size;
   });
 
-  return Array.from(byDay.values()).sort((a, b) => a.day.localeCompare(b.day));
+  return Array.from(byDay.values()).sort((a, b) => b.day.localeCompare(a.day));
 }
 
 export function summarizeDashboardRows(rows: DashboardMetricRow[]): DashboardMetricRow {
@@ -99,4 +111,32 @@ export function buildDashboardTotal(state: AdminState, start = '', end = ''): Da
   const rows = summarizeDashboardRows(buildDashboardRows(state, start, end));
   rows.orderUsers = new Set(state.orders.filter((item) => inRange(item.time, start, end)).map((item) => item.userId)).size;
   return rows;
+}
+
+export function latestDashboardDay(state: AdminState): string {
+  const days = [
+    ...state.rechargeRecords.map((item) => toDateKey(item.time)),
+    ...state.withdrawals.map((item) => toDateKey(item.requestedAt)),
+    ...state.users.map((item) => toDateKey(item.registeredAt)),
+    ...state.orders.map((item) => toDateKey(item.time)),
+    ...state.ledgers.map((item) => toDateKey(item.time)),
+  ].filter(Boolean);
+  return days.sort((a, b) => b.localeCompare(a))[0] ?? toInputDate(new Date());
+}
+
+export function quickDashboardRange(state: AdminState, range: QuickRange): { start: string; end: string } {
+  const end = latestDashboardDay(state);
+  const endDate = toDate(end);
+  const startDate = new Date(endDate);
+  if (range === '本周') {
+    const day = startDate.getDay() || 7;
+    startDate.setDate(startDate.getDate() - day + 1);
+  }
+  if (range === '本月') {
+    startDate.setDate(1);
+  }
+  return {
+    start: range === '当天' ? end : toInputDate(startDate),
+    end,
+  };
 }
