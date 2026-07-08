@@ -352,7 +352,7 @@ function CompanionDetailModal({
           <div>
             <h5 className="mb-2 text-xs font-black text-slate-500">截图材料</h5>
             <div className="grid gap-2 sm:grid-cols-2">
-              {row.screenshots.map((item) => (
+              {row.screenshots.slice(0, 1).map((item) => (
                 <div key={item} className="grid aspect-video place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-sm font-black text-slate-500">
                   {item}
                 </div>

@@ -13,7 +13,7 @@ export const mockCompanionServices: CompanionService[] = [
     platform: 'iOS / Discord',
     positions: 'Duelist / Sentinel',
     style: '稳定上分、轻松聊天',
-    screenshots: ['段位截图-Valorant-01', '战绩截图-Valorant-02'],
+    screenshots: ['段位截图-Valorant-01'],
     voice: 'voice_lumina_intro.mp3',
     serviceItems: [
       { category: 'Valorant', name: '排位双排', price: '100 金币/局' },
@@ -32,7 +32,7 @@ export const mockCompanionServices: CompanionService[] = [
     platform: 'Android / WhatsApp',
     positions: '突击位 / 指挥',
     style: '高互动、带新手',
-    screenshots: ['段位截图-PUBG-01', '认证自拍-02'],
+    screenshots: ['段位截图-PUBG-01'],
     voice: 'voice_aria_intro.mp3',
     serviceItems: [
       { category: 'PUBG Mobile', name: '经典四排', price: '80 金币/局' },
@@ -51,7 +51,7 @@ export const mockCompanionServices: CompanionService[] = [
     platform: 'PC / Discord',
     positions: 'Jungle / Support',
     style: '指挥型、教学型',
-    screenshots: ['段位截图-League-01', '英雄池截图-02'],
+    screenshots: ['段位截图-League-01'],
     voice: 'voice_mena_intro.mp3',
     serviceItems: [
       { category: 'League', name: '单双排陪玩', price: '140 金币/小时' },
