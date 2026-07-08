@@ -15,7 +15,7 @@ import { useAdminStore } from '../../store/useAdminStore';
 import { exportXlsx } from '../../utils/exportXlsx';
 import { formatNumber } from '../../utils/format';
 import { OrderDataTable, RechargeDataTable, WithdrawDataTable } from './DataTables';
-import { buildDashboardRows, buildDashboardTotal, quickDashboardRange, type DashboardMetricRow, type DataViewMode, type QuickRange } from './dataDashboard';
+import { buildDashboardRows, buildDashboardTotal, quickDashboardRange, type DashboardGranularity, type DashboardMetricRow, type DataViewMode, type QuickRange } from './dataDashboard';
 
 export const dataTabs = ['大盘数据', '明细数据'] as const;
 export type DataTab = (typeof dataTabs)[number];
@@ -24,6 +24,11 @@ const detailTabs = ['充值数据', '订单数据', '提现数据'] as const;
 type DetailTab = (typeof detailTabs)[number];
 
 const dashboardHeaders = ['日期', '充值金币', '提现钻石', '注册人数', '新增陪玩', '下单人数', '订单数量', '订单消费金币', '送礼消费金币'];
+const viewGranularity: Record<Exclude<DataViewMode, '合计'>, DashboardGranularity> = {
+  按天: 'day',
+  按周: 'week',
+  按月: 'month',
+};
 
 const rowToExport = (row: DashboardMetricRow) => [
   row.day,
@@ -66,9 +71,12 @@ function DashboardDataPanel() {
   const [start, setStart] = useState(defaultRange.start);
   const [end, setEnd] = useState(defaultRange.end);
 
-  const dailyRows = useMemo(() => buildDashboardRows(state, start, end), [state, start, end]);
+  const detailRows = useMemo(
+    () => (viewMode === '合计' ? [] : buildDashboardRows(state, start, end, viewGranularity[viewMode])),
+    [state, start, end, viewMode],
+  );
   const total = useMemo(() => buildDashboardTotal(state, start, end), [state, start, end]);
-  const exportRows = viewMode === '合计' ? [total] : dailyRows;
+  const exportRows = viewMode === '合计' ? [total] : detailRows;
   const applyQuickRange = (range: QuickRange) => {
     const next = quickDashboardRange(state, range);
     setQuickRange(range);
@@ -78,7 +86,7 @@ function DashboardDataPanel() {
 
   const handleExport = () => {
     exportXlsx(
-      viewMode === '合计' ? '大盘数据-合计.xlsx' : '大盘数据-按天.xlsx',
+      `大盘数据-${viewMode}.xlsx`,
       dashboardHeaders,
       exportRows.map(rowToExport),
     );
@@ -88,7 +96,7 @@ function DashboardDataPanel() {
     <Panel title="大盘数据" icon={BarChart3}>
       <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 xl:grid-cols-[160px_160px_1fr_1fr_auto]">
         <Field label="展示维度">
-          <SelectInput value={viewMode} onChange={(value) => setViewMode(value as DataViewMode)} options={['合计', '按天']} />
+          <SelectInput value={viewMode} onChange={(value) => setViewMode(value as DataViewMode)} options={['合计', '按天', '按周', '按月']} />
         </Field>
         <Field label="快捷时间">
           <SelectInput
@@ -146,7 +154,7 @@ function DashboardDataPanel() {
       ) : (
         <DataTable
           columns={dashboardHeaders}
-          rows={dailyRows.map((row) => [
+          rows={detailRows.map((row) => [
             row.day,
             formatNumber(row.rechargeCoins),
             formatNumber(row.withdrawDiamonds),

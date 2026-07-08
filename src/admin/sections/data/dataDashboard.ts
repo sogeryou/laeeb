@@ -1,6 +1,7 @@
 import type { AdminState } from '../../store/reducer';
 
-export type DataViewMode = '合计' | '按天';
+export type DataViewMode = '合计' | '按天' | '按周' | '按月';
+export type DashboardGranularity = 'day' | 'week' | 'month';
 
 export interface DashboardMetricRow {
   day: string;
@@ -40,57 +41,72 @@ const toInputDate = (date: Date) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
+const bucketKey = (time: string, granularity: DashboardGranularity) => {
+  const day = toDateKey(time);
+  if (granularity === 'day') return day;
+  if (granularity === 'month') return day.slice(0, 7);
+  const date = toDate(day);
+  const weekDay = date.getDay() || 7;
+  const start = new Date(date);
+  start.setDate(date.getDate() - weekDay + 1);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return `${toInputDate(start)}~${toInputDate(end)}`;
+};
+
+const sortKey = (key: string) => key.split('~')[0];
+
 const inRange = (time: string, start: string, end: string): boolean => {
   const day = toDateKey(time);
   return (!start || day >= start) && (!end || day <= end);
 };
 
-const addToDay = (rows: Map<string, DashboardMetricRow>, day: string) => {
-  const row = rows.get(day) ?? emptyMetricRow(day);
-  rows.set(day, row);
+const addToBucket = (rows: Map<string, DashboardMetricRow>, key: string) => {
+  const row = rows.get(key) ?? emptyMetricRow(key);
+  rows.set(key, row);
   return row;
 };
 
-export function buildDashboardRows(state: AdminState, start = '', end = ''): DashboardMetricRow[] {
-  const byDay = new Map<string, DashboardMetricRow>();
-  const orderUsersByDay = new Map<string, Set<string>>();
+export function buildDashboardRows(state: AdminState, start = '', end = '', granularity: DashboardGranularity = 'day'): DashboardMetricRow[] {
+  const byBucket = new Map<string, DashboardMetricRow>();
+  const orderUsersByBucket = new Map<string, Set<string>>();
 
   state.rechargeRecords.filter((item) => inRange(item.time, start, end)).forEach((item) => {
-    addToDay(byDay, toDateKey(item.time)).rechargeCoins += item.coinsTotal;
+    addToBucket(byBucket, bucketKey(item.time, granularity)).rechargeCoins += item.coinsTotal;
   });
 
   state.withdrawals.filter((item) => inRange(item.requestedAt, start, end)).forEach((item) => {
-    addToDay(byDay, toDateKey(item.requestedAt)).withdrawDiamonds += item.diamonds;
+    addToBucket(byBucket, bucketKey(item.requestedAt, granularity)).withdrawDiamonds += item.diamonds;
   });
 
   state.users.filter((item) => inRange(item.registeredAt, start, end)).forEach((item) => {
-    addToDay(byDay, toDateKey(item.registeredAt)).registrations += 1;
+    addToBucket(byBucket, bucketKey(item.registeredAt, granularity)).registrations += 1;
   });
 
   const companionIds = new Set(state.companionServices.map((item) => item.id));
   state.users.filter((item) => companionIds.has(item.id) && inRange(item.registeredAt, start, end)).forEach((item) => {
-    addToDay(byDay, toDateKey(item.registeredAt)).newCompanions += 1;
+    addToBucket(byBucket, bucketKey(item.registeredAt, granularity)).newCompanions += 1;
   });
 
   state.orders.filter((item) => inRange(item.time, start, end)).forEach((item) => {
-    const day = toDateKey(item.time);
-    const row = addToDay(byDay, day);
+    const key = bucketKey(item.time, granularity);
+    const row = addToBucket(byBucket, key);
     row.orderCount += 1;
     row.orderSpendCoins += item.total;
-    const users = orderUsersByDay.get(day) ?? new Set<string>();
+    const users = orderUsersByBucket.get(key) ?? new Set<string>();
     users.add(item.userId);
-    orderUsersByDay.set(day, users);
+    orderUsersByBucket.set(key, users);
   });
 
   state.ledgers.filter((item) => item.asset === '礼物' && inRange(item.time, start, end)).forEach((item) => {
-    addToDay(byDay, toDateKey(item.time)).giftSpendCoins += Math.abs(item.amount);
+    addToBucket(byBucket, bucketKey(item.time, granularity)).giftSpendCoins += Math.abs(item.amount);
   });
 
-  orderUsersByDay.forEach((users, day) => {
-    addToDay(byDay, day).orderUsers = users.size;
+  orderUsersByBucket.forEach((users, key) => {
+    addToBucket(byBucket, key).orderUsers = users.size;
   });
 
-  return Array.from(byDay.values()).sort((a, b) => b.day.localeCompare(a.day));
+  return Array.from(byBucket.values()).sort((a, b) => sortKey(b.day).localeCompare(sortKey(a.day)));
 }
 
 export function summarizeDashboardRows(rows: DashboardMetricRow[]): DashboardMetricRow {
