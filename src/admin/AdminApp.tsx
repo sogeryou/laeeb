@@ -15,7 +15,7 @@ import { useAdminStore } from './store/useAdminStore';
 import { AccountsSection, accountTabs, type AccountTab } from './sections/accounts/AccountsSection';
 import { OperationsSection, type OperationTab, operationTabs } from './sections/operations/OperationsSection';
 import { CompanionSection, companionTabs } from './sections/operations/CompanionOpsPanel';
-import { DataSection } from './sections/data/DataSection';
+import { DataSection, dataTabs, type DataTab } from './sections/data/DataSection';
 import { RiskSection } from './sections/risk/RiskSection';
 
 type AdminSection = 'accounts' | 'operations' | 'companions' | 'data' | 'risk';
@@ -36,6 +36,7 @@ function AdminShell() {
   const [accountTab, setAccountTab] = useState<AccountTabState>('用户信息');
   const [operationTab, setOperationTab] = useState<OperationTab>('资产管理');
   const [companionTab, setCompanionTab] = useState<CompanionTab>('陪玩管理');
+  const [dataTab, setDataTab] = useState<DataTab>('大盘数据');
   const [selectedUserId, setSelectedUserId] = useState(state.users[0]?.id ?? '');
   const [selectedDeviceId, setSelectedDeviceId] = useState(state.users[0]?.did ?? '');
 
@@ -122,6 +123,24 @@ function AdminShell() {
                   ))}
                 </div>
               )}
+              {item.id === 'data' && section === 'data' && (
+                <div className="mt-1 space-y-1 pl-7">
+                  {dataTabs.map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => {
+                        setSection('data');
+                        setDataTab(tab);
+                      }}
+                      className={`flex h-9 w-full items-center rounded-md px-3 text-left text-xs font-black transition ${
+                        dataTab === tab ? 'bg-slate-950 text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </nav>
@@ -185,7 +204,7 @@ function AdminShell() {
           )}
           {section === 'operations' && <OperationsSection activeTab={operationTab} />}
           {section === 'companions' && <CompanionSection activeTab={companionTab} />}
-          {section === 'data' && <DataSection />}
+          {section === 'data' && <DataSection activeTab={dataTab} />}
           {section === 'risk' && <RiskSection />}
         </div>
       </section>
