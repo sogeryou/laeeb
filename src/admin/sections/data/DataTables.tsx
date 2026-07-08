@@ -173,8 +173,8 @@ export function CompanionDataTable() {
   const handleExport = () =>
     exportCsv(
       '陪玩数据',
-      ['陪玩ID', '昵称', '服务类型数量', '完成订单数', '争议订单数', '评分', '订单收入', '礼物收入', '访客数'],
-      q.filtered.map((c) => [c.id, c.name, c.services, c.completed, c.disputes, c.rating, c.orderIncome, c.giftIncome, c.visitors]),
+      ['陪玩ID', '昵称', '服务类型数量', '争议订单数', '访客数'],
+      q.filtered.map((c) => [c.id, c.name, c.services, c.disputes, c.visitors]),
     );
 
   return (
@@ -185,9 +185,9 @@ export function CompanionDataTable() {
         onReset={q.reset} onExport={handleExport}
       />
       <DataTable
-        columns={['陪玩ID', '昵称', '服务类型数量', '完成订单数', '争议订单数', '评分(人数)', '订单收入', '礼物收入', '访客数']}
-        rows={q.pageItems.map((c) => [c.id, c.name, c.services, c.completed, c.disputes, c.rating, formatNumber(c.orderIncome), formatNumber(c.giftIncome), formatNumber(c.visitors)])}
-        minWidth={1000}
+        columns={['陪玩ID', '昵称', '服务类型数量', '争议订单数', '访客数']}
+        rows={q.pageItems.map((c) => [c.id, c.name, c.services, c.disputes, formatNumber(c.visitors)])}
+        minWidth={720}
         emptyText="暂无陪玩数据"
         pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage }}
       />

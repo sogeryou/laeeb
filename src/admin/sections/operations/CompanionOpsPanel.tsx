@@ -87,6 +87,7 @@ export function CompanionManagementPanel() {
   });
   const serviceOptions = useMemo(() => allServiceTypes(state.companionServices), [state.companionServices]);
   const levelOptions = useMemo(() => allLevels(source), [source]);
+  const statsById = useMemo(() => new Map(state.companionStats.map((item) => [item.id, item])), [state.companionStats]);
 
   const runSearch = () => {
     setIdFilter(draftId);
@@ -136,14 +137,22 @@ export function CompanionManagementPanel() {
       </div>
 
       <DataTable
-        columns={['陪玩ID', '陪玩昵称', '服务类型数量', '陪玩等级', '操作']}
-        rows={q.pageItems.map((row) => [
-          <button type="button" onClick={() => setDetail(row)} className="font-black text-emerald-700 hover:underline">{row.id}</button>,
-          row.name,
-          serviceTypeCount(row),
-          row.level,
-          <MiniActionButton label="移除陪玩" tone="danger" onClick={() => setRemoveTarget(row)} />,
-        ])}
+        columns={['陪玩ID', '陪玩昵称', '服务类型数量', '陪玩等级', '完成订单数', '评分(人数)', '订单收入', '礼物收入', '操作']}
+        rows={q.pageItems.map((row) => {
+          const stat = statsById.get(row.id);
+          return [
+            <button type="button" onClick={() => setDetail(row)} className="font-black text-emerald-700 hover:underline">{row.id}</button>,
+            row.name,
+            serviceTypeCount(row),
+            row.level,
+            formatNumber(stat?.completed ?? 0),
+            stat?.rating ?? '待积累',
+            formatNumber(stat?.orderIncome ?? 0),
+            formatNumber(stat?.giftIncome ?? 0),
+            <MiniActionButton label="移除陪玩" tone="danger" onClick={() => setRemoveTarget(row)} />,
+          ];
+        })}
+        minWidth={1180}
         emptyText="暂无陪玩"
         pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}
       />
