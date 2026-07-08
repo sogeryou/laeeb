@@ -61,6 +61,7 @@ export function DataSection({ activeTab }: { activeTab: DataTab }) {
 function DashboardDataPanel() {
   const { state } = useAdminStore();
   const [viewMode, setViewMode] = useState<DataViewMode>('合计');
+  const [quickRange, setQuickRange] = useState('自定义');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
 
@@ -69,6 +70,7 @@ function DashboardDataPanel() {
   const exportRows = viewMode === '合计' ? [total] : dailyRows;
   const applyQuickRange = (range: QuickRange) => {
     const next = quickDashboardRange(state, range);
+    setQuickRange(range);
     setStart(next.start);
     setEnd(next.end);
   };
@@ -83,32 +85,34 @@ function DashboardDataPanel() {
 
   return (
     <Panel title="大盘数据" icon={BarChart3}>
-      <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 xl:grid-cols-[180px_1fr_1fr_auto_auto]">
+      <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 xl:grid-cols-[160px_160px_1fr_1fr_auto]">
         <Field label="展示维度">
           <SelectInput value={viewMode} onChange={(value) => setViewMode(value as DataViewMode)} options={['合计', '按天']} />
         </Field>
+        <Field label="快捷时间">
+          <SelectInput
+            value={quickRange}
+            onChange={(value) => {
+              if (value === '自定义') {
+                setQuickRange(value);
+                return;
+              }
+              applyQuickRange(value as QuickRange);
+            }}
+            options={['自定义', '当天', '本周', '本月']}
+          />
+        </Field>
         <Field label="开始日期">
-          <TextInput type="date" value={start} onChange={setStart} />
+          <TextInput type="date" value={start} onChange={(value) => { setQuickRange('自定义'); setStart(value); }} />
         </Field>
         <Field label="结束日期">
-          <TextInput type="date" value={end} onChange={setEnd} />
+          <TextInput type="date" value={end} onChange={(value) => { setQuickRange('自定义'); setEnd(value); }} />
         </Field>
-        <div className="flex items-end gap-2">
-          {(['当天', '本周', '本月'] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => applyQuickRange(item)}
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 hover:bg-slate-50"
-            >
-              {item}
-            </button>
-          ))}
-        </div>
         <div className="flex items-end gap-2">
           <button
             type="button"
             onClick={() => {
+              setQuickRange('自定义');
               setStart('');
               setEnd('');
             }}
