@@ -14,13 +14,13 @@ import { DataTable, Field, Panel, SelectInput, TextInput } from '../../component
 import { useAdminStore } from '../../store/useAdminStore';
 import { exportXlsx } from '../../utils/exportXlsx';
 import { formatNumber } from '../../utils/format';
-import { CompanionDataTable, OrderDataTable, RechargeDataTable, WithdrawDataTable } from './DataTables';
+import { OrderDataTable, RechargeDataTable, WithdrawDataTable } from './DataTables';
 import { buildDashboardRows, buildDashboardTotal, quickDashboardRange, type DashboardMetricRow, type DataViewMode, type QuickRange } from './dataDashboard';
 
 export const dataTabs = ['大盘数据', '明细数据'] as const;
 export type DataTab = (typeof dataTabs)[number];
 
-const detailTabs = ['充值数据', '订单数据', '提现数据', '陪玩数据'] as const;
+const detailTabs = ['充值数据', '订单数据', '提现数据'] as const;
 type DetailTab = (typeof detailTabs)[number];
 
 const dashboardHeaders = ['日期', '充值金币', '提现钻石', '注册人数', '新增陪玩', '下单人数', '订单数量', '订单消费金币', '送礼消费金币'];
@@ -186,7 +186,6 @@ function DetailDataPanel() {
       {tab === '充值数据' && <RechargeDataTable />}
       {tab === '订单数据' && <OrderDataTable />}
       {tab === '提现数据' && <WithdrawDataTable />}
-      {tab === '陪玩数据' && <CompanionDataTable />}
     </Panel>
   );
 }

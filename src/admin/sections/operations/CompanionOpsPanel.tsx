@@ -6,6 +6,7 @@ import { useTableQuery } from '../../hooks/useTableQuery';
 import { useAdminStore } from '../../store/useAdminStore';
 import type { CompanionReviewPayload } from '../../store/actions';
 import type { CompanionService } from '../../types';
+import { CompanionDataTable } from '../data/DataTables';
 
 type CompanionSubTab = '陪玩管理' | '陪玩审核';
 export const companionTabs: CompanionSubTab[] = ['陪玩管理', '陪玩审核'];
@@ -19,7 +20,14 @@ interface CompanionAuditRow {
 export function CompanionSection({ activeTab }: { activeTab: CompanionSubTab }) {
   return (
     <section className="space-y-5">
-      {activeTab === '陪玩管理' && <CompanionManagementPanel />}
+      {activeTab === '陪玩管理' && (
+        <>
+          <CompanionManagementPanel />
+          <Panel title="陪玩数据" icon={Sparkles}>
+            <CompanionDataTable />
+          </Panel>
+        </>
+      )}
       {activeTab === '陪玩审核' && <CompanionAuditPanel />}
     </section>
   );
