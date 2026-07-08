@@ -60,6 +60,7 @@ export type EditableUserField =
 export interface CompanionReviewPayload {
   id: string;
   action: '审核通过' | '审核驳回' | '移除陪玩' | '调整服务价格';
+  serviceCategory?: string;
   service?: string;
   price?: string;
 }

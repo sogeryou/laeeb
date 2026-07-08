@@ -45,6 +45,30 @@ function replaceById<T extends { id: string }>(list: T[], id: string, patch: (it
   return list.map((item) => (item.id === id ? patch(item) : item));
 }
 
+const serviceCategories = (item: CompanionService) =>
+  Array.from(new Set(item.serviceItems.map((serviceItem) => serviceItem.category)));
+
+const serviceAudit = (item: CompanionService, category: string) =>
+  item.serviceAudits?.[category] ?? item.audit;
+
+const serviceAuditMap = (
+  item: CompanionService,
+  fallback: CompanionService['audit'],
+): Record<string, CompanionService['audit']> =>
+  Object.fromEntries(serviceCategories(item).map((category) => [category, fallback]));
+
+const currentServiceAuditMap = (item: CompanionService): Record<string, CompanionService['audit']> =>
+  Object.fromEntries(serviceCategories(item).map((category) => [category, serviceAudit(item, category)]));
+
+const summarizeCompanionAudit = (item: CompanionService): CompanionService['audit'] => {
+  const statuses = serviceCategories(item).map((category) => serviceAudit(item, category));
+  if (statuses.length === 0) return item.audit;
+  if (statuses.every((status) => status === '已移除')) return '已移除';
+  if (statuses.some((status) => status === '已认证')) return '已认证';
+  if (statuses.some((status) => status === '待审核')) return '待审核';
+  return '已拒绝';
+};
+
 const defaultUserName = (userId: string): string => `默认用户${userId.slice(-4)}`;
 const defaultAvatar = '';
 
@@ -214,20 +238,36 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
     }
 
     case 'COMPANION_REVIEW': {
-      const { id, action: act, service, price } = action.payload;
-      const nextAudit = act === '审核通过'
+      const { id, action: act, serviceCategory, service, price } = action.payload;
+      const nextAudit: CompanionService['audit'] | undefined = act === '审核通过'
         ? '已认证'
         : act === '审核驳回'
           ? '已拒绝'
           : act === '移除陪玩'
-            ? '已移除'
-            : undefined;
+          ? '已移除'
+          : undefined;
+      let nextCompanionAudit: CompanionService['audit'] | undefined;
       const companionServices = replaceById(state.companionServices, id, (item): CompanionService => {
-        if (nextAudit) return { ...item, audit: nextAudit };
+        if (nextAudit && serviceCategory && nextAudit !== '已移除') {
+          const updatedItem: CompanionService = {
+            ...item,
+            serviceAudits: {
+              ...currentServiceAuditMap(item),
+              [serviceCategory]: nextAudit,
+            },
+          };
+          nextCompanionAudit = summarizeCompanionAudit(updatedItem);
+          return { ...updatedItem, audit: nextCompanionAudit };
+        }
+        if (nextAudit) {
+          const serviceAudits = serviceAuditMap(item, nextAudit);
+          nextCompanionAudit = nextAudit;
+          return { ...item, audit: nextAudit, serviceAudits };
+        }
         return { ...item, service: service ?? item.service, price: price ?? item.price };
       });
-      const companionStats = nextAudit
-        ? replaceById(state.companionStats, id, (item): CompanionStat => ({ ...item, audit: nextAudit }))
+      const companionStats = nextCompanionAudit
+        ? replaceById(state.companionStats, id, (item): CompanionStat => ({ ...item, audit: nextCompanionAudit }))
         : state.companionStats;
       return { ...state, companionServices, companionStats };
     }

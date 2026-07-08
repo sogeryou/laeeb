@@ -13,6 +13,7 @@ interface CompanionAuditRow {
   key: string;
   companion: CompanionService;
   serviceCategory: string;
+  audit: CompanionService['audit'];
 }
 
 export function CompanionSection({ activeTab }: { activeTab: CompanionSubTab }) {
@@ -28,6 +29,9 @@ const auditOptions = ['全部', '待审核', '已认证', '已拒绝', '已移�
 const statRangeOptions = ['当天', '当周', '当月', '历史'];
 const allServiceTypes = (rows: CompanionService[]) => ['全部', ...Array.from(new Set(rows.flatMap((row) => row.serviceItems.map((item) => item.category))))];
 const allLevels = (rows: CompanionService[]) => ['全部', ...Array.from(new Set(rows.map((row) => row.level)))];
+
+const getServiceAudit = (row: CompanionService, serviceCategory: string) =>
+  row.serviceAudits?.[serviceCategory] ?? row.audit;
 
 function serviceTypeCount(row: CompanionService) {
   return new Set(row.serviceItems.map((item) => item.category)).size;
@@ -172,10 +176,11 @@ export function CompanionAuditPanel() {
 
   const auditRows = useMemo<CompanionAuditRow[]>(
     () => state.companionServices.flatMap((companion) =>
-      Array.from(new Set(companion.serviceItems.map((item) => item.category))).map((serviceCategory) => ({
+      Array.from(new Set<string>(companion.serviceItems.map((item) => item.category))).map((serviceCategory) => ({
         key: `${companion.id}::${serviceCategory}`,
         companion,
         serviceCategory,
+        audit: getServiceAudit(companion, serviceCategory),
       })),
     ),
     [state.companionServices],
@@ -185,7 +190,7 @@ export function CompanionAuditPanel() {
       const idNeedle = draftId.trim().toLowerCase();
       if (idNeedle && !row.companion.id.toLowerCase().includes(idNeedle)) return false;
       if (serviceType !== '全部' && row.serviceCategory !== serviceType) return false;
-      return auditStatus === '全部' || row.companion.audit === auditStatus;
+      return auditStatus === '全部' || row.audit === auditStatus;
     },
   });
   const serviceOptions = useMemo(() => allServiceTypes(state.companionServices), [state.companionServices]);
@@ -196,8 +201,10 @@ export function CompanionAuditPanel() {
   };
 
   const applyReview = (keys: string[], action: '审核通过' | '审核驳回') => {
-    const companionIds = Array.from(new Set(keys.map((key) => key.split('::')[0])));
-    companionIds.forEach((id) => dispatch({ type: 'COMPANION_REVIEW', payload: { id, action } }));
+    keys.forEach((key) => {
+      const [id, serviceCategory] = key.split('::');
+      dispatch({ type: 'COMPANION_REVIEW', payload: { id, serviceCategory, action } });
+    });
     toast(`已${action} ${keys.length} 个服务申请`, action === '审核驳回' ? 'error' : 'success');
     setSelectedIds((prev) => prev.filter((id) => !keys.includes(id)));
     setDetail(null);
@@ -233,7 +240,7 @@ export function CompanionAuditPanel() {
           <button type="button" onClick={() => setDetail(row)} className="font-black text-emerald-700 hover:underline">{row.companion.id}</button>,
           row.companion.name,
           row.serviceCategory,
-          <Badge label={row.companion.audit} />,
+          <Badge label={row.audit} />,
         ])}
         emptyText="暂无审核数据"
         pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}

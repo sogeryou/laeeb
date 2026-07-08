@@ -35,6 +35,7 @@ export interface CompanionService {
   id: string;
   name: string;
   audit: '已认证' | '待审核' | '已拒绝' | '已移除';
+  serviceAudits?: Record<string, '已认证' | '待审核' | '已拒绝' | '已移除'>;
   service: string;
   price: string;
   level: string;
