@@ -182,7 +182,7 @@ function DeviceInfoSection({
     }
     setCommittedDeviceId(value);
     const found = deviceUsers(state.users, state.linkedAccountIds, value);
-    toast(found.length ? `查询到 ${found.length} 个登录账号` : '未查询到该设备登录账号', found.length ? 'success' : 'error');
+    toast(found.length ? `查询到 ${found.length} 个设备下账号` : '未查询到该设备下账号', found.length ? 'success' : 'error');
   };
 
   const reset = () => {
