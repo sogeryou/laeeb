@@ -6,7 +6,6 @@ import { useTableQuery } from '../../hooks/useTableQuery';
 import { useAdminStore } from '../../store/useAdminStore';
 import type { CompanionReviewPayload } from '../../store/actions';
 import type { CompanionService } from '../../types';
-import { CompanionDataTable } from '../data/DataTables';
 
 type CompanionSubTab = '陪玩管理' | '陪玩审核';
 export const companionTabs: CompanionSubTab[] = ['陪玩管理', '陪玩审核'];
@@ -20,14 +19,7 @@ interface CompanionAuditRow {
 export function CompanionSection({ activeTab }: { activeTab: CompanionSubTab }) {
   return (
     <section className="space-y-5">
-      {activeTab === '陪玩管理' && (
-        <>
-          <CompanionManagementPanel />
-          <Panel title="陪玩数据" icon={Sparkles}>
-            <CompanionDataTable />
-          </Panel>
-        </>
-      )}
+      {activeTab === '陪玩管理' && <CompanionManagementPanel />}
       {activeTab === '陪玩审核' && <CompanionAuditPanel />}
     </section>
   );
@@ -137,9 +129,11 @@ export function CompanionManagementPanel() {
       </div>
 
       <DataTable
-        columns={['陪玩ID', '陪玩昵称', '服务类型数量', '陪玩等级', '完成订单数', '评分(人数)', '订单收入', '礼物收入', '操作']}
+        columns={['陪玩ID', '陪玩昵称', '服务类型数量', '陪玩等级', '完成订单数', '评分(人数)', '总收入', '订单收入', '礼物收入', '操作']}
         rows={q.pageItems.map((row) => {
           const stat = statsById.get(row.id);
+          const orderIncome = stat?.orderIncome ?? 0;
+          const giftIncome = stat?.giftIncome ?? 0;
           return [
             <button type="button" onClick={() => setDetail(row)} className="font-black text-emerald-700 hover:underline">{row.id}</button>,
             row.name,
@@ -147,12 +141,13 @@ export function CompanionManagementPanel() {
             row.level,
             formatNumber(stat?.completed ?? 0),
             stat?.rating ?? '待积累',
-            formatNumber(stat?.orderIncome ?? 0),
-            formatNumber(stat?.giftIncome ?? 0),
+            formatNumber(orderIncome + giftIncome),
+            formatNumber(orderIncome),
+            formatNumber(giftIncome),
             <MiniActionButton label="移除陪玩" tone="danger" onClick={() => setRemoveTarget(row)} />,
           ];
         })}
-        minWidth={1180}
+        minWidth={1280}
         emptyText="暂无陪玩"
         pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}
       />
