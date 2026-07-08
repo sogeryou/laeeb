@@ -8,6 +8,7 @@ export function ModalShell({
   subtitle,
   children,
   onClose,
+  headerActions,
   onConfirm,
   confirmText = '确认',
   confirmDisabled = false,
@@ -18,6 +19,7 @@ export function ModalShell({
   subtitle?: string;
   children: React.ReactNode;
   onClose: () => void;
+  headerActions?: React.ReactNode;
   onConfirm?: () => void;
   confirmText?: string;
   confirmDisabled?: boolean;
@@ -32,14 +34,17 @@ export function ModalShell({
             <h3 className="text-base font-black text-slate-950">{title}</h3>
             {subtitle && <p className="mt-1 text-xs font-bold text-slate-500">{subtitle}</p>}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid size-9 place-items-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-950"
-            aria-label={`关闭${title}`}
-          >
-            ×
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {headerActions}
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid size-9 place-items-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-950"
+              aria-label={`关闭${title}`}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="max-h-[68vh] space-y-4 overflow-y-auto p-5">{children}</div>

@@ -296,9 +296,21 @@ function CompanionDetailModal({
   const totalDiamonds = orderDiamonds + giftDiamonds;
   const receivedOrders = Math.round((companionStat?.completed ?? 0) * ratio);
   const selectedItems = row.serviceItems.filter((item) => item.category === selectedCategory);
+  const auditActions = mode === 'audit' ? (
+    <div className="flex items-center gap-2">
+      <MiniActionButton label="通过" tone="success" onClick={onApprove ?? (() => {})} />
+      <MiniActionButton label="拒绝" tone="danger" onClick={onReject ?? (() => {})} />
+    </div>
+  ) : undefined;
 
   return (
-    <ModalShell title={mode === 'manage' ? '陪玩资料' : '陪玩审核资料'} subtitle={`${row.id} / ${row.name}`} onClose={onClose} maxWidth="max-w-4xl">
+    <ModalShell
+      title={mode === 'manage' ? '陪玩资料' : '陪玩审核资料'}
+      subtitle={`${row.id} / ${row.name}`}
+      onClose={onClose}
+      headerActions={auditActions}
+      maxWidth="max-w-4xl"
+    >
       {mode === 'manage' && (
         <section className="rounded-md bg-slate-50 p-4">
           <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -369,12 +381,6 @@ function CompanionDetailModal({
         </div>
       </section>
 
-      {mode === 'audit' && (
-        <div className="flex flex-wrap gap-2">
-          <MiniActionButton label="通过" tone="success" onClick={onApprove ?? (() => {})} />
-          <MiniActionButton label="拒绝" tone="danger" onClick={onReject ?? (() => {})} />
-        </div>
-      )}
     </ModalShell>
   );
 }
