@@ -60,10 +60,11 @@ export function DataSection({ activeTab }: { activeTab: DataTab }) {
 
 function DashboardDataPanel() {
   const { state } = useAdminStore();
+  const defaultRange = useMemo(() => quickDashboardRange(state, '当天'), [state]);
   const [viewMode, setViewMode] = useState<DataViewMode>('合计');
-  const [quickRange, setQuickRange] = useState('自定义');
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
+  const [quickRange, setQuickRange] = useState('当天');
+  const [start, setStart] = useState(defaultRange.start);
+  const [end, setEnd] = useState(defaultRange.end);
 
   const dailyRows = useMemo(() => buildDashboardRows(state, start, end), [state, start, end]);
   const total = useMemo(() => buildDashboardTotal(state, start, end), [state, start, end]);
