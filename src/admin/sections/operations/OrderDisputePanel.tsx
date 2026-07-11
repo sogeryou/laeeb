@@ -9,6 +9,7 @@ import type { DisputeOrder } from '../../types';
 import { exportXlsx } from '../../utils/exportXlsx';
 
 const disputeStatusOptions = ['全部', '待审核', '复审中', '审核完成'];
+type DisputeReviewResult = DisputeResolvePayload['result'] | '提交复审';
 
 /** 纠纷管理（docx §2.D：举报审核、订单纠纷审核）。 */
 export function OrderDisputePanel() {
@@ -126,7 +127,7 @@ export function OrderDisputePanel() {
         <DisputeReviewModal
           order={reviewOrder}
           onClose={() => setReviewOrder(null)}
-          onRecheck={() => {
+          onConfirmRecheck={() => {
             dispatch({ type: 'DISPUTE_RECHECK', payload: { id: reviewOrder.id } });
             toast(`纠纷 ${reviewOrder.orderId} 已提交复审`, 'success');
             setReviewOrder(null);
@@ -145,24 +146,28 @@ export function OrderDisputePanel() {
 function DisputeReviewModal({
   order,
   onClose,
-  onRecheck,
+  onConfirmRecheck,
   onConfirm,
 }: {
   order: DisputeOrder;
   onClose: () => void;
-  onRecheck: () => void;
+  onConfirmRecheck: () => void;
   onConfirm: (payload: DisputeResolvePayload) => void;
 }) {
-  const [result, setResult] = useState<DisputeResolvePayload['result']>('用户申诉通过');
+  const [result, setResult] = useState<DisputeReviewResult>('用户申诉通过');
   const [selectedEvidence, setSelectedEvidence] = useState(order.evidence[0] ?? '');
   const [refundCoins, setRefundCoins] = useState(String(order.total));
   const [deductDiamonds, setDeductDiamonds] = useState(String(order.total));
   const isVideoEvidence = selectedEvidence.includes('视频');
-  const canResolve = order.status !== '审核完成';
+  const canProcess = order.status === '待审核';
+  const reviewOptions: DisputeReviewResult[] = ['用户申诉通过', '用户申诉驳回', '部分赔付', '提交复审'];
 
-  const applyResult = (next: DisputeResolvePayload['result']) => {
+  const applyResult = (next: DisputeReviewResult) => {
     setResult(next);
     if (next === '用户申诉驳回') {
+      setRefundCoins('0');
+      setDeductDiamonds('0');
+    } else if (next === '提交复审') {
       setRefundCoins('0');
       setDeductDiamonds('0');
     } else if (next === '用户申诉通过') {
@@ -179,10 +184,12 @@ function DisputeReviewModal({
       title={order.status === '复审中' ? '纠纷订单复审' : '纠纷订单审核'}
       subtitle={`${order.orderId} · ${order.userId}/${order.userName} 对 ${order.epalId}/${order.epalName} · 当前状态：${order.status}`}
       onClose={onClose}
-      onConfirm={canResolve ? () =>
-        onConfirm({ id: order.id, result, refundCoins: Number(refundCoins) || 0, deductDiamonds: Number(deductDiamonds) || 0 })
+      onConfirm={canProcess ? () =>
+        result === '提交复审'
+          ? onConfirmRecheck()
+          : onConfirm({ id: order.id, result, refundCoins: Number(refundCoins) || 0, deductDiamonds: Number(deductDiamonds) || 0 })
       : undefined}
-      confirmText="确认处理"
+      confirmText={result === '提交复审' ? '确认提交复审' : '确认处理'}
       footerTone={result === '用户申诉驳回' ? 'danger' : 'success'}
     >
       <div className="grid gap-3 rounded-md bg-slate-50 p-3 sm:grid-cols-3">
@@ -229,22 +236,18 @@ function DisputeReviewModal({
 
       <fieldset>
         <legend className="mb-2 text-sm font-black text-slate-700">审核结果</legend>
-        {!canResolve && (
+        {order.status === '审核完成' && (
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-500">
             该纠纷订单已审核完成，仅支持查看。
           </div>
         )}
-        {canResolve && order.status === '待审核' && (
-          <button
-            type="button"
-            onClick={onRecheck}
-            className="mb-3 h-10 rounded-md border border-sky-200 bg-sky-50 px-3 text-sm font-black text-sky-700 hover:bg-sky-100"
-          >
-            提交复审
-          </button>
+        {order.status === '复审中' && (
+          <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-700">
+            该纠纷订单已进入复审中，需用户再次提交审核申请后，运营才可以继续处理。
+          </div>
         )}
-        {canResolve && <div className="grid gap-2 sm:grid-cols-3">
-          {(['用户申诉通过', '用户申诉驳回', '部分赔付'] as const).map((item) => (
+        {canProcess && <div className="grid gap-2 sm:grid-cols-4">
+          {reviewOptions.map((item) => (
             <button
               key={item}
               type="button"
@@ -259,7 +262,7 @@ function DisputeReviewModal({
         </div>}
       </fieldset>
 
-      {canResolve && <div className="grid gap-3 sm:grid-cols-2">
+      {canProcess && result !== '提交复审' && <div className="grid gap-3 sm:grid-cols-2">
         <Field label="用户退回金币">
           <TextInput type="number" value={refundCoins} onChange={setRefundCoins} />
         </Field>
@@ -268,11 +271,11 @@ function DisputeReviewModal({
         </Field>
       </div>}
 
-      {canResolve && <label className="block space-y-1">
+      {canProcess && <label className="block space-y-1">
         <span className="text-sm font-black text-slate-700">审核说明</span>
         <textarea
           className="min-h-24 w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-          placeholder="填写纠纷判责、证据采信与资产处理说明"
+          placeholder={result === '提交复审' ? '填写提交复审原因与需要用户补充的材料' : '填写纠纷判责、证据采信与资产处理说明'}
         />
       </label>}
     </ModalShell>

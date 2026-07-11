@@ -328,7 +328,7 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
     case 'DISPUTE_RESOLVE': {
       const { id, refundCoins, deductDiamonds } = action.payload;
       const dispute = state.disputes.find((d) => d.id === id);
-      if (!dispute || dispute.status === '审核完成') return state;
+      if (!dispute || dispute.status !== '待审核') return state;
       const disputes = replaceById(state.disputes, id, (d): DisputeOrder => ({ ...d, status: '审核完成' }));
       let users = state.users;
       const ledgers = [...state.ledgers];
