@@ -249,6 +249,7 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
       let nextCompanionAudit: CompanionService['audit'] | undefined;
       const companionServices = replaceById(state.companionServices, id, (item): CompanionService => {
         if (nextAudit && serviceCategory && nextAudit !== '已移除') {
+          if (serviceAudit(item, serviceCategory) !== '待审核') return item;
           const updatedItem: CompanionService = {
             ...item,
             serviceAudits: {

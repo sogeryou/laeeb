@@ -43,6 +43,7 @@ export function AccountRecords({ user }: { user: AdminUser }) {
 function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset }) {
   const { state } = useAdminStore();
   const [draftStart, setDraftStart] = useState('');
+  const [draftEnd, setDraftEnd] = useState('');
   const [draftType, setDraftType] = useState('全部');
   const source = useMemo(
     () => state.ledgers.filter((row) => row.userId.startsWith(user.id) && row.asset === asset),
@@ -53,10 +54,11 @@ function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset })
   const unit = asset === '钻石' ? '钻石' : '金币';
   const runQuery = () => {
     q.setType(draftType);
-    q.setDateRange({ start: draftStart });
+    q.setDateRange({ start: draftStart, end: draftEnd });
   };
   const reset = () => {
     setDraftStart('');
+    setDraftEnd('');
     setDraftType('全部');
     q.reset();
   };
@@ -77,6 +79,8 @@ function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset })
         onType={setDraftType}
         dateStart={draftStart}
         onDateStart={setDraftStart}
+        dateEnd={draftEnd}
+        onDateEnd={setDraftEnd}
         onQuery={runQuery}
         onReset={reset}
         onExport={exportRows}
@@ -196,6 +200,8 @@ function LedgerFilterBar({
   onType,
   dateStart,
   onDateStart,
+  dateEnd,
+  onDateEnd,
   onQuery,
   onReset,
   onExport,
@@ -205,14 +211,19 @@ function LedgerFilterBar({
   onType: (v: string) => void;
   dateStart: string;
   onDateStart: (v: string) => void;
+  dateEnd: string;
+  onDateEnd: (v: string) => void;
   onQuery: () => void;
   onReset: () => void;
   onExport: () => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(260px,1fr)_minmax(180px,0.7fr)_auto]">
-      <Field label="时间">
+    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(180px,0.7fr)_auto]">
+      <Field label="开始时间">
         <TextInput type="datetime-local" step="1" value={dateStart} onChange={onDateStart} />
+      </Field>
+      <Field label="结束时间">
+        <TextInput type="datetime-local" step="1" value={dateEnd} onChange={onDateEnd} />
       </Field>
       <Field label="类型">
         <SelectInput value={type} onChange={onType} options={typeOptions} />

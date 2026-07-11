@@ -206,19 +206,28 @@ export function CompanionAuditPanel() {
     },
   });
   const serviceOptions = useMemo(() => allServiceTypes(state.companionServices), [state.companionServices]);
-  const selectedVisibleIds = selectedIds.filter((id) => q.filtered.some((row) => row.key === id));
+  const pendingRows = q.filtered.filter((row) => row.audit === '待审核');
+  const selectedVisibleIds = selectedIds.filter((id) => pendingRows.some((row) => row.key === id));
 
-  const toggleSelected = (id: string) => {
+  const toggleSelected = (row: CompanionAuditRow) => {
+    if (row.audit !== '待审核') return;
+    const id = row.key;
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
   };
 
   const applyReview = (keys: string[], action: '审核通过' | '审核驳回') => {
-    keys.forEach((key) => {
+    const pendingKeys = new Set(auditRows.filter((row) => row.audit === '待审核').map((row) => row.key));
+    const reviewableKeys = keys.filter((key) => pendingKeys.has(key));
+    reviewableKeys.forEach((key) => {
       const [id, serviceCategory] = key.split('::');
       dispatch({ type: 'COMPANION_REVIEW', payload: { id, serviceCategory, action } });
     });
-    toast(`已${action} ${keys.length} 个服务申请`, action === '审核驳回' ? 'error' : 'success');
-    setSelectedIds((prev) => prev.filter((id) => !keys.includes(id)));
+    const skipped = keys.length - reviewableKeys.length;
+    toast(
+      skipped > 0 ? `已${action} ${reviewableKeys.length} 个服务申请，${skipped} 个已完成审核不可更改` : `已${action} ${reviewableKeys.length} 个服务申请`,
+      action === '审核驳回' ? 'error' : 'success',
+    );
+    setSelectedIds((prev) => prev.filter((id) => !reviewableKeys.includes(id)));
     setDetail(null);
     setConfirm(null);
   };
@@ -248,7 +257,13 @@ export function CompanionAuditPanel() {
       <DataTable
         columns={['选择', '陪玩ID', '陪玩昵称', '服务项目', '审核状态']}
         rows={q.pageItems.map((row) => [
-          <input type="checkbox" checked={selectedIds.includes(row.key)} onChange={() => toggleSelected(row.key)} className="size-4 accent-emerald-700" />,
+          <input
+            type="checkbox"
+            checked={selectedIds.includes(row.key)}
+            disabled={row.audit !== '待审核'}
+            onChange={() => toggleSelected(row)}
+            className="size-4 accent-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+          />,
           <button type="button" onClick={() => setDetail(row)} className="font-black text-emerald-700 hover:underline">{row.companion.id}</button>,
           row.companion.name,
           row.serviceCategory,
@@ -263,6 +278,7 @@ export function CompanionAuditPanel() {
           row={detail.companion}
           serviceCategory={detail.serviceCategory}
           mode="audit"
+          auditStatus={detail.audit}
           onClose={() => setDetail(null)}
           onApprove={() => setConfirm({ ids: [detail.key], action: '审核通过' })}
           onReject={() => setConfirm({ ids: [detail.key], action: '审核驳回' })}
@@ -284,6 +300,7 @@ function CompanionDetailModal({
   row,
   serviceCategory,
   mode,
+  auditStatus,
   onClose,
   onApprove,
   onReject,
@@ -291,6 +308,7 @@ function CompanionDetailModal({
   row: CompanionService;
   serviceCategory?: string;
   mode: 'manage' | 'audit';
+  auditStatus?: CompanionService['audit'];
   onClose: () => void;
   onApprove?: () => void;
   onReject?: () => void;
@@ -308,11 +326,16 @@ function CompanionDetailModal({
   const totalDiamonds = orderDiamonds + giftDiamonds;
   const receivedOrders = Math.round((companionStat?.completed ?? 0) * ratio);
   const selectedItems = row.serviceItems.filter((item) => item.category === selectedCategory);
-  const auditActions = mode === 'audit' ? (
+  const isPendingAudit = mode === 'audit' && auditStatus === '待审核';
+  const auditActions = isPendingAudit ? (
     <div className="flex items-center gap-2">
       <MiniActionButton label="通过" tone="success" onClick={onApprove ?? (() => {})} />
       <MiniActionButton label="拒绝" tone="danger" onClick={onReject ?? (() => {})} />
     </div>
+  ) : mode === 'audit' ? (
+    <span className="rounded border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-500">
+      已完成审核，不可更改状态
+    </span>
   ) : undefined;
 
   return (
