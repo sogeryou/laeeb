@@ -8,7 +8,7 @@ export type Role = '用户' | '陪玩';
 export type OrderStatus = '待确认' | '进行中' | '已完成' | '已取消' | '纠纷中';
 
 /** 提现状态（docx §2.A）。 */
-export type WithdrawalStatus = '待审核' | '已通过' | '已拒绝' | '复核中';
+export type WithdrawalStatus = '待审核' | '已通过' | '已拒绝';
 
 /** 资产种类。 */
 export type AssetKind = '金币' | '钻石';

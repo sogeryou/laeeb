@@ -150,7 +150,7 @@ export function WithdrawDataTable() {
     <>
       <DataFilterBar
         keyword={q.keyword} onKeyword={q.setKeyword}
-        typeLabel="提现状态" typeOptions={['全部', '待审核', '复核中', '已通过', '已拒绝']} type={q.status} onType={q.setStatus}
+        typeLabel="提现状态" typeOptions={['全部', '待审核', '已通过', '已拒绝']} type={q.status} onType={q.setStatus}
         dateStart={q.dateRange.start ?? ''} onDateStart={(v) => q.setDateRange({ ...q.dateRange, start: v })}
         onReset={q.reset} onExport={handleExport}
       />

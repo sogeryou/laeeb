@@ -8,7 +8,7 @@ import type { WithdrawalRow } from '../../types';
 import { exportCsv } from '../../utils/csv';
 import { diamondsToUsd, formatDiamondsWithUsd, formatNumber, formatUsd } from '../../utils/format';
 
-const statusOptions = ['全部', '待审核', '复核中', '已通过', '已拒绝'];
+const statusOptions = ['全部', '待审核', '已通过', '已拒绝'];
 
 /** 提现审核（docx §2.A）。 */
 export function WithdrawalReviewPanel() {
