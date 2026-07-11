@@ -103,6 +103,7 @@ function LedgerRecords({ user, asset }: { user: AdminUser; asset: LedgerAsset })
 function OrderRecords({ user }: { user: AdminUser }) {
   const { state } = useAdminStore();
   const [draftStart, setDraftStart] = useState('');
+  const [draftEnd, setDraftEnd] = useState('');
   const [draftStatus, setDraftStatus] = useState('全部');
   const [draftUserId, setDraftUserId] = useState('');
   const [draftEpalId, setDraftEpalId] = useState('');
@@ -127,12 +128,13 @@ function OrderRecords({ user }: { user: AdminUser }) {
   const statusOptions = useMemo(() => ['全部', ...new Set(source.map((o) => o.status))], [source]);
   const runQuery = () => {
     q.setStatus(draftStatus);
-    q.setDateRange({ start: draftStart });
+    q.setDateRange({ start: draftStart, end: draftEnd });
     setUserId(draftUserId);
     setEpalId(draftEpalId);
   };
   const reset = () => {
     setDraftStart('');
+    setDraftEnd('');
     setDraftStatus('全部');
     setDraftUserId('');
     setDraftEpalId('');
@@ -164,6 +166,8 @@ function OrderRecords({ user }: { user: AdminUser }) {
         onStatus={setDraftStatus}
         dateStart={draftStart}
         onDateStart={setDraftStart}
+        dateEnd={draftEnd}
+        onDateEnd={setDraftEnd}
         userId={draftUserId}
         onUserId={setDraftUserId}
         epalId={draftEpalId}
@@ -249,6 +253,8 @@ function OrderFilterBar({
   onStatus,
   dateStart,
   onDateStart,
+  dateEnd,
+  onDateEnd,
   userId,
   onUserId,
   epalId,
@@ -262,6 +268,8 @@ function OrderFilterBar({
   onStatus: (v: string) => void;
   dateStart: string;
   onDateStart: (v: string) => void;
+  dateEnd: string;
+  onDateEnd: (v: string) => void;
   userId: string;
   onUserId: (v: string) => void;
   epalId: string;
@@ -271,9 +279,12 @@ function OrderFilterBar({
   onExport: () => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.7fr)_minmax(160px,0.7fr)_minmax(160px,0.7fr)_auto]">
-      <Field label="时间">
+    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(200px,1fr)_minmax(200px,1fr)_minmax(150px,0.7fr)_minmax(150px,0.7fr)_minmax(150px,0.7fr)_auto]">
+      <Field label="开始时间">
         <TextInput type="datetime-local" step="1" value={dateStart} onChange={onDateStart} />
+      </Field>
+      <Field label="结束时间">
+        <TextInput type="datetime-local" step="1" value={dateEnd} onChange={onDateEnd} />
       </Field>
       <Field label="订单状态">
         <SelectInput value={status} onChange={onStatus} options={statusOptions} />
