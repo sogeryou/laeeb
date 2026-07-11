@@ -83,15 +83,13 @@ export function RechargeDataTable() {
   const { state } = useAdminStore();
   const [userId, setUserId] = useState('');
   const [innerOrderNo, setInnerOrderNo] = useState('');
-  const [platformOrderId, setPlatformOrderId] = useState('');
   const platformOptions = useMemo(() => ['全部', ...new Set(state.rechargeRecords.map((r) => r.platform))], [state.rechargeRecords]);
   const q = useTableQuery<RechargeRecord>(state.rechargeRecords, {
     typeKey: 'platform',
     dateKey: 'time',
     extra: (row) =>
       includesValue(row.userId, userId) &&
-      includesValue(row.innerOrderNo, innerOrderNo) &&
-      includesValue(row.outerOrderNo, platformOrderId),
+      includesValue(row.innerOrderNo, innerOrderNo),
   });
 
   const handleExport = () =>
@@ -107,14 +105,12 @@ export function RechargeDataTable() {
         filters={[
           { label: '用户ID', value: userId, onChange: (v) => { setUserId(v); q.setPage(1); }, placeholder: '查询用户ID' },
           { label: '内部订单号', value: innerOrderNo, onChange: (v) => { setInnerOrderNo(v); q.setPage(1); }, placeholder: '查询内部订单号' },
-          { label: '充值平台ID', value: platformOrderId, onChange: (v) => { setPlatformOrderId(v); q.setPage(1); }, placeholder: '查询充值平台ID' },
         ]}
         typeLabel="充值平台" typeOptions={platformOptions} type={q.type} onType={q.setType}
         dateStart={q.dateRange.start ?? ''} onDateStart={(v) => q.setDateRange({ ...q.dateRange, start: v })}
         onReset={() => {
           setUserId('');
           setInnerOrderNo('');
-          setPlatformOrderId('');
           q.reset();
         }} onExport={handleExport}
       />
@@ -194,8 +190,8 @@ export function WithdrawDataTable() {
   const handleExport = () =>
     exportCsv(
       '提现数据',
-      ['申请时间', '用户ID', '昵称', '提现钻石数', '手续费', '实发美金', '提现状态'],
-      q.filtered.map((w) => [w.requestedAt, w.userId, w.userName, w.diamonds, formatUsd(w.fee), formatUsd(w.netUsd), w.status]),
+      ['申请时间', '提现订单ID', '用户ID', '昵称', '提现钻石数', '手续费', '实发美金', '提现状态'],
+      q.filtered.map((w) => [w.requestedAt, w.orderId, w.userId, w.userName, w.diamonds, formatUsd(w.fee), formatUsd(w.netUsd), w.status]),
     );
 
   return (
@@ -214,9 +210,9 @@ export function WithdrawDataTable() {
         }} onExport={handleExport}
       />
       <DataTable
-        columns={['申请时间', '用户ID', '昵称', '提现钻石数(美金)', '手续费', '实发美金', '提现状态']}
-        rows={q.pageItems.map((w) => [w.requestedAt, w.userId, w.userName, `${formatNumber(w.diamonds)} (${formatUsd(diamondsToUsd(w.diamonds))})`, formatUsd(w.fee), formatUsd(w.netUsd), <Badge label={w.status} />])}
-        minWidth={900}
+        columns={['申请时间', '提现订单ID', '用户ID', '昵称', '提现钻石数(美金)', '手续费', '实发美金', '提现状态']}
+        rows={q.pageItems.map((w) => [w.requestedAt, w.orderId, w.userId, w.userName, `${formatNumber(w.diamonds)} (${formatUsd(diamondsToUsd(w.diamonds))})`, formatUsd(w.fee), formatUsd(w.netUsd), <Badge label={w.status} />])}
+        minWidth={1000}
         emptyText="暂无提现数据"
         pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage }}
       />
