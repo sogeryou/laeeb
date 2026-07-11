@@ -317,44 +317,50 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
       };
     }
 
+    case 'DISPUTE_RECHECK': {
+      const { id } = action.payload;
+      const dispute = state.disputes.find((d) => d.id === id);
+      if (!dispute || dispute.status !== '待审核') return state;
+      const disputes = replaceById(state.disputes, id, (d): DisputeOrder => ({ ...d, status: '复审中' }));
+      return { ...state, disputes };
+    }
+
     case 'DISPUTE_RESOLVE': {
       const { id, refundCoins, deductDiamonds } = action.payload;
       const dispute = state.disputes.find((d) => d.id === id);
-      const disputes = replaceById(state.disputes, id, (d): DisputeOrder => ({ ...d, status: '已处理' }));
+      if (!dispute || dispute.status === '审核完成') return state;
+      const disputes = replaceById(state.disputes, id, (d): DisputeOrder => ({ ...d, status: '审核完成' }));
       let users = state.users;
       const ledgers = [...state.ledgers];
       let seq = state.seq;
 
-      if (dispute) {
-        // 关联订单置为已取消（纠纷判责后结清）。
-        const orders = state.orders.map((o) =>
-          o.id === dispute.orderId ? { ...o, status: '已取消' as const } : o,
-        );
-        users = users.map((user) => {
-          if (user.id === dispute.userId && refundCoins > 0) {
-            return { ...user, coins: user.coins + refundCoins };
-          }
-          if (user.id === dispute.epalId && deductDiamonds > 0) {
-            return { ...user, diamonds: Math.max(0, user.diamonds - deductDiamonds) };
-          }
-          return user;
-        });
-        if (refundCoins > 0) {
-          seq += 1;
-          ledgers.unshift({
-            id: `L${seq}`,
-            time: nowTime(),
-            userId: `${dispute.userId} / ${dispute.userName}`,
-            type: 'dispute_refund',
-            asset: '金币',
-            amount: refundCoins,
-            balanceAfter: users.find((u) => u.id === dispute.userId)?.coins ?? refundCoins,
-            reference: dispute.orderId,
-          });
+      // 关联订单置为已取消（纠纷判责后结清）。
+      const orders = state.orders.map((o) =>
+        o.id === dispute.orderId ? { ...o, status: '已取消' as const } : o,
+      );
+      users = users.map((user) => {
+        if (user.id === dispute.userId && refundCoins > 0) {
+          return { ...user, coins: user.coins + refundCoins };
         }
-        return { ...state, disputes, orders, users, ledgers, seq };
+        if (user.id === dispute.epalId && deductDiamonds > 0) {
+          return { ...user, diamonds: Math.max(0, user.diamonds - deductDiamonds) };
+        }
+        return user;
+      });
+      if (refundCoins > 0) {
+        seq += 1;
+        ledgers.unshift({
+          id: `L${seq}`,
+          time: nowTime(),
+          userId: `${dispute.userId} / ${dispute.userName}`,
+          type: 'dispute_refund',
+          asset: '金币',
+          amount: refundCoins,
+          balanceAfter: users.find((u) => u.id === dispute.userId)?.coins ?? refundCoins,
+          reference: dispute.orderId,
+        });
       }
-      return { ...state, disputes };
+      return { ...state, disputes, orders, users, ledgers, seq };
     }
 
     case 'RISK_HANDLE': {

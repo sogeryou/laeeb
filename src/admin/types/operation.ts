@@ -69,6 +69,8 @@ export interface CompanionStat {
 }
 
 /** 纠纷 / 举报订单（docx §2.D）。 */
+export type DisputeStatus = '待审核' | '复审中' | '审核完成';
+
 export interface DisputeOrder {
   id: string;
   time: string;
@@ -82,5 +84,5 @@ export interface DisputeOrder {
   quantity: number;
   total: number;
   evidence: string[];
-  status: '待审核' | '已处理' | '取证中';
+  status: DisputeStatus;
 }

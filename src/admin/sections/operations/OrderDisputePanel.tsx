@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Download, MessageSquareWarning } from 'lucide-react';
-import { Badge, DataTable, Field, Metric, MiniActionButton, ModalShell, Panel, TextInput } from '../../components';
+import { Badge, DataTable, Field, Metric, MiniActionButton, ModalShell, Panel, SelectInput, TextInput } from '../../components';
 import { useToast } from '../../components/Toast';
 import { useTableQuery } from '../../hooks/useTableQuery';
 import { useAdminStore } from '../../store/useAdminStore';
 import type { DisputeResolvePayload } from '../../store/actions';
 import type { DisputeOrder } from '../../types';
 import { exportXlsx } from '../../utils/exportXlsx';
+
+const disputeStatusOptions = ['全部', '待审核', '复审中', '审核完成'];
 
 /** 纠纷管理（docx §2.D：举报审核、订单纠纷审核）。 */
 export function OrderDisputePanel() {
@@ -21,6 +23,7 @@ export function OrderDisputePanel() {
   const [orderId, setOrderId] = useState('');
 
   const q = useTableQuery<DisputeOrder>(state.disputes, {
+    statusKey: 'status',
     extra: (row) => {
       const userNeedle = userId.trim().toLowerCase();
       const epalNeedle = epalId.trim().toLowerCase();
@@ -75,7 +78,7 @@ export function OrderDisputePanel() {
         </button>
       }
     >
-      <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
+      <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 xl:grid-cols-[1fr_1fr_1fr_1fr_auto]">
         <Field label="用户ID">
           <TextInput value={draftUserId} onChange={setDraftUserId} placeholder="查询用户ID" />
         </Field>
@@ -84,6 +87,9 @@ export function OrderDisputePanel() {
         </Field>
         <Field label="订单ID">
           <TextInput value={draftOrderId} onChange={setDraftOrderId} placeholder="查询订单ID" />
+        </Field>
+        <Field label="状态">
+          <SelectInput value={q.status} onChange={q.setStatus} options={disputeStatusOptions} />
         </Field>
         <div className="flex items-end gap-2">
           <button type="button" onClick={runSearch} className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-black text-white hover:bg-emerald-800">
@@ -109,9 +115,9 @@ export function OrderDisputePanel() {
           row.quantity,
           `${row.total} 金币`,
           <Badge label={row.status} />,
-          row.status === '已处理'
+          row.status === '审核完成'
             ? <span className="text-xs font-bold text-slate-400">已结案</span>
-            : <MiniActionButton label="审核" tone="success" onClick={() => setReviewOrder(row)} />,
+            : <MiniActionButton label={row.status === '复审中' ? '复审' : '审核'} tone="success" onClick={() => setReviewOrder(row)} />,
         ])}
         minWidth={1100}
         emptyText="暂无纠纷订单"
@@ -122,9 +128,14 @@ export function OrderDisputePanel() {
         <DisputeReviewModal
           order={reviewOrder}
           onClose={() => setReviewOrder(null)}
+          onRecheck={() => {
+            dispatch({ type: 'DISPUTE_RECHECK', payload: { id: reviewOrder.id } });
+            toast(`纠纷 ${reviewOrder.orderId} 已提交复审`, 'success');
+            setReviewOrder(null);
+          }}
           onConfirm={(payload) => {
             dispatch({ type: 'DISPUTE_RESOLVE', payload });
-            toast(`纠纷 ${reviewOrder.orderId} 已处理`, 'success');
+            toast(`纠纷 ${reviewOrder.orderId} 已审核完成`, 'success');
             setReviewOrder(null);
           }}
         />
@@ -136,10 +147,12 @@ export function OrderDisputePanel() {
 function DisputeReviewModal({
   order,
   onClose,
+  onRecheck,
   onConfirm,
 }: {
   order: DisputeOrder;
   onClose: () => void;
+  onRecheck: () => void;
   onConfirm: (payload: DisputeResolvePayload) => void;
 }) {
   const [result, setResult] = useState<DisputeResolvePayload['result']>('用户申诉通过');
@@ -164,8 +177,8 @@ function DisputeReviewModal({
 
   return (
     <ModalShell
-      title="纠纷订单审核"
-      subtitle={`${order.orderId} · ${order.userId}/${order.userName} 对 ${order.epalId}/${order.epalName}`}
+      title={order.status === '复审中' ? '纠纷订单复审' : '纠纷订单审核'}
+      subtitle={`${order.orderId} · ${order.userId}/${order.userName} 对 ${order.epalId}/${order.epalName} · 当前状态：${order.status}`}
       onClose={onClose}
       onConfirm={() =>
         onConfirm({ id: order.id, result, refundCoins: Number(refundCoins) || 0, deductDiamonds: Number(deductDiamonds) || 0 })
@@ -217,6 +230,15 @@ function DisputeReviewModal({
 
       <fieldset>
         <legend className="mb-2 text-sm font-black text-slate-700">审核结果</legend>
+        {order.status === '待审核' && (
+          <button
+            type="button"
+            onClick={onRecheck}
+            className="mb-3 h-10 rounded-md border border-sky-200 bg-sky-50 px-3 text-sm font-black text-sky-700 hover:bg-sky-100"
+          >
+            提交复审
+          </button>
+        )}
         <div className="grid gap-2 sm:grid-cols-3">
           {(['用户申诉通过', '用户申诉驳回', '部分赔付'] as const).map((item) => (
             <button

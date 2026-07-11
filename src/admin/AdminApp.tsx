@@ -41,7 +41,7 @@ function AdminShell() {
   const [selectedDeviceId, setSelectedDeviceId] = useState(state.users[0]?.did ?? '');
 
   const pendingWithdrawals = state.withdrawals.filter((w) => w.status === '待审核').length;
-  const pendingDisputes = state.disputes.filter((d) => d.status !== '已处理').length;
+  const pendingDisputes = state.disputes.filter((d) => d.status !== '审核完成').length;
   const pendingRisks = state.riskHits.filter((r) => !r.handled).length;
 
   return (

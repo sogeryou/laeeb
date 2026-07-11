@@ -71,6 +71,10 @@ export interface CompanionAddPayload {
 }
 
 /** 纠纷处置。 */
+export interface DisputeRecheckPayload {
+  id: string;
+}
+
 export interface DisputeResolvePayload {
   id: string;
   result: '用户申诉通过' | '用户申诉驳回' | '部分赔付';
@@ -89,6 +93,7 @@ export type AdminAction =
   | { type: 'USER_FIELD_DELETE'; payload: { userId: string; field: EditableUserField } }
   | { type: 'COMPANION_REVIEW'; payload: CompanionReviewPayload }
   | { type: 'COMPANION_ADD'; payload: CompanionAddPayload }
+  | { type: 'DISPUTE_RECHECK'; payload: DisputeRecheckPayload }
   | { type: 'DISPUTE_RESOLVE'; payload: DisputeResolvePayload }
   | { type: 'RISK_HANDLE'; payload: { id: string; ban: boolean } };
 
