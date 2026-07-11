@@ -29,6 +29,7 @@ function DataFilterBar({
   onType,
   dateStart,
   onDateStart,
+  onQuery,
   onReset,
   onExport,
 }: {
@@ -39,6 +40,7 @@ function DataFilterBar({
   onType?: (v: string) => void;
   dateStart: string;
   onDateStart: (v: string) => void;
+  onQuery: () => void;
   onReset: () => void;
   onExport: () => void;
 }) {
@@ -67,6 +69,9 @@ function DataFilterBar({
         </Field>
       )}
       <div className="flex items-end gap-2">
+        <button type="button" onClick={onQuery} className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-black text-white hover:bg-emerald-800">
+          查询
+        </button>
         <button type="button" onClick={onReset} className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 hover:bg-slate-50">
           重置
         </button>
@@ -81,6 +86,8 @@ function DataFilterBar({
 /** 充值数据（docx §3 充值数据字段）。 */
 export function RechargeDataTable() {
   const { state } = useAdminStore();
+  const [draftUserId, setDraftUserId] = useState('');
+  const [draftInnerOrderNo, setDraftInnerOrderNo] = useState('');
   const [userId, setUserId] = useState('');
   const [innerOrderNo, setInnerOrderNo] = useState('');
   const platformOptions = useMemo(() => ['全部', ...new Set(state.rechargeRecords.map((r) => r.platform))], [state.rechargeRecords]);
@@ -103,12 +110,19 @@ export function RechargeDataTable() {
     <>
       <DataFilterBar
         filters={[
-          { label: '用户ID', value: userId, onChange: (v) => { setUserId(v); q.setPage(1); }, placeholder: '查询用户ID' },
-          { label: '内部订单号', value: innerOrderNo, onChange: (v) => { setInnerOrderNo(v); q.setPage(1); }, placeholder: '查询内部订单号' },
+          { label: '用户ID', value: draftUserId, onChange: setDraftUserId, placeholder: '查询用户ID' },
+          { label: '内部订单号', value: draftInnerOrderNo, onChange: setDraftInnerOrderNo, placeholder: '查询内部订单号' },
         ]}
         typeLabel="充值平台" typeOptions={platformOptions} type={q.type} onType={q.setType}
         dateStart={q.dateRange.start ?? ''} onDateStart={(v) => q.setDateRange({ ...q.dateRange, start: v })}
+        onQuery={() => {
+          setUserId(draftUserId);
+          setInnerOrderNo(draftInnerOrderNo);
+          q.setPage(1);
+        }}
         onReset={() => {
+          setDraftUserId('');
+          setDraftInnerOrderNo('');
           setUserId('');
           setInnerOrderNo('');
           q.reset();
@@ -128,6 +142,9 @@ export function RechargeDataTable() {
 /** 订单数据（docx §3 订单数据字段）。 */
 export function OrderDataTable() {
   const { state } = useAdminStore();
+  const [draftUserId, setDraftUserId] = useState('');
+  const [draftEpalId, setDraftEpalId] = useState('');
+  const [draftOrderId, setDraftOrderId] = useState('');
   const [userId, setUserId] = useState('');
   const [epalId, setEpalId] = useState('');
   const [orderId, setOrderId] = useState('');
@@ -152,13 +169,22 @@ export function OrderDataTable() {
     <>
       <DataFilterBar
         filters={[
-          { label: '用户ID', value: userId, onChange: (v) => { setUserId(v); q.setPage(1); }, placeholder: '查询用户ID' },
-          { label: '陪玩ID', value: epalId, onChange: (v) => { setEpalId(v); q.setPage(1); }, placeholder: '查询陪玩ID' },
-          { label: '订单ID', value: orderId, onChange: (v) => { setOrderId(v); q.setPage(1); }, placeholder: '查询订单ID' },
+          { label: '用户ID', value: draftUserId, onChange: setDraftUserId, placeholder: '查询用户ID' },
+          { label: '陪玩ID', value: draftEpalId, onChange: setDraftEpalId, placeholder: '查询陪玩ID' },
+          { label: '订单ID', value: draftOrderId, onChange: setDraftOrderId, placeholder: '查询订单ID' },
         ]}
         typeLabel="订单状态" typeOptions={statusOptions} type={q.status} onType={q.setStatus}
         dateStart={q.dateRange.start ?? ''} onDateStart={(v) => q.setDateRange({ ...q.dateRange, start: v })}
+        onQuery={() => {
+          setUserId(draftUserId);
+          setEpalId(draftEpalId);
+          setOrderId(draftOrderId);
+          q.setPage(1);
+        }}
         onReset={() => {
+          setDraftUserId('');
+          setDraftEpalId('');
+          setDraftOrderId('');
           setUserId('');
           setEpalId('');
           setOrderId('');
@@ -179,6 +205,8 @@ export function OrderDataTable() {
 /** 提现数据（docx §3 提现数据：提现钻石数/手续费/实发美金）。 */
 export function WithdrawDataTable() {
   const { state } = useAdminStore();
+  const [draftUserId, setDraftUserId] = useState('');
+  const [draftOrderId, setDraftOrderId] = useState('');
   const [userId, setUserId] = useState('');
   const [orderId, setOrderId] = useState('');
   const q = useTableQuery<WithdrawalRow>(state.withdrawals, {
@@ -198,12 +226,19 @@ export function WithdrawDataTable() {
     <>
       <DataFilterBar
         filters={[
-          { label: '用户ID', value: userId, onChange: (v) => { setUserId(v); q.setPage(1); }, placeholder: '查询用户ID' },
-          { label: '订单ID', value: orderId, onChange: (v) => { setOrderId(v); q.setPage(1); }, placeholder: '查询订单ID' },
+          { label: '用户ID', value: draftUserId, onChange: setDraftUserId, placeholder: '查询用户ID' },
+          { label: '订单ID', value: draftOrderId, onChange: setDraftOrderId, placeholder: '查询订单ID' },
         ]}
         typeLabel="提现状态" typeOptions={['全部', '待审核', '已通过', '已拒绝']} type={q.status} onType={q.setStatus}
         dateStart={q.dateRange.start ?? ''} onDateStart={(v) => q.setDateRange({ ...q.dateRange, start: v })}
+        onQuery={() => {
+          setUserId(draftUserId);
+          setOrderId(draftOrderId);
+          q.setPage(1);
+        }}
         onReset={() => {
+          setDraftUserId('');
+          setDraftOrderId('');
           setUserId('');
           setOrderId('');
           q.reset();
@@ -239,6 +274,7 @@ export function CompanionDataTable() {
           { label: '陪玩ID/昵称', value: q.keyword, onChange: q.setKeyword, placeholder: '查询陪玩ID或昵称' },
         ]}
         dateStart="" onDateStart={() => {}}
+        onQuery={() => q.setPage(1)}
         onReset={q.reset} onExport={handleExport}
       />
       <DataTable
