@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Download, MessageSquareWarning } from 'lucide-react';
-import { Badge, DataTable, Field, Metric, MiniActionButton, ModalShell, Panel, SelectInput, TextInput } from '../../components';
+import { Badge, DataTable, Field, Metric, ModalShell, Panel, SelectInput, TextInput } from '../../components';
 import { useToast } from '../../components/Toast';
 import { useTableQuery } from '../../hooks/useTableQuery';
 import { useAdminStore } from '../../store/useAdminStore';
@@ -102,7 +102,7 @@ export function OrderDisputePanel() {
       </div>
 
       <DataTable
-        columns={['时间', '订单ID', '陪玩ID', '陪玩昵称', '用户ID', '用户昵称', '服务类型', '订单单价', '数量', '订单总价', '状态', '操作']}
+        columns={['时间', '订单ID', '陪玩ID', '陪玩昵称', '用户ID', '用户昵称', '服务类型', '订单单价', '数量', '订单总价', '状态']}
         rows={q.pageItems.map((row) => [
           row.time,
           row.orderId,
@@ -115,10 +115,8 @@ export function OrderDisputePanel() {
           row.quantity,
           `${row.total} 金币`,
           <Badge label={row.status} />,
-          row.status === '审核完成'
-            ? <span className="text-xs font-bold text-slate-400">已结案</span>
-            : <MiniActionButton label={row.status === '复审中' ? '复审' : '审核'} tone="success" onClick={() => setReviewOrder(row)} />,
         ])}
+        onRowClick={(rowIndex) => setReviewOrder(q.pageItems[rowIndex])}
         minWidth={1100}
         emptyText="暂无纠纷订单"
         pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}
@@ -160,6 +158,7 @@ function DisputeReviewModal({
   const [refundCoins, setRefundCoins] = useState(String(order.total));
   const [deductDiamonds, setDeductDiamonds] = useState(String(order.total));
   const isVideoEvidence = selectedEvidence.includes('视频');
+  const canResolve = order.status !== '审核完成';
 
   const applyResult = (next: DisputeResolvePayload['result']) => {
     setResult(next);
@@ -180,9 +179,9 @@ function DisputeReviewModal({
       title={order.status === '复审中' ? '纠纷订单复审' : '纠纷订单审核'}
       subtitle={`${order.orderId} · ${order.userId}/${order.userName} 对 ${order.epalId}/${order.epalName} · 当前状态：${order.status}`}
       onClose={onClose}
-      onConfirm={() =>
+      onConfirm={canResolve ? () =>
         onConfirm({ id: order.id, result, refundCoins: Number(refundCoins) || 0, deductDiamonds: Number(deductDiamonds) || 0 })
-      }
+      : undefined}
       confirmText="确认处理"
       footerTone={result === '用户申诉驳回' ? 'danger' : 'success'}
     >
@@ -230,7 +229,12 @@ function DisputeReviewModal({
 
       <fieldset>
         <legend className="mb-2 text-sm font-black text-slate-700">审核结果</legend>
-        {order.status === '待审核' && (
+        {!canResolve && (
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-500">
+            该纠纷订单已审核完成，仅支持查看。
+          </div>
+        )}
+        {canResolve && order.status === '待审核' && (
           <button
             type="button"
             onClick={onRecheck}
@@ -239,7 +243,7 @@ function DisputeReviewModal({
             提交复审
           </button>
         )}
-        <div className="grid gap-2 sm:grid-cols-3">
+        {canResolve && <div className="grid gap-2 sm:grid-cols-3">
           {(['用户申诉通过', '用户申诉驳回', '部分赔付'] as const).map((item) => (
             <button
               key={item}
@@ -252,25 +256,25 @@ function DisputeReviewModal({
               {item}
             </button>
           ))}
-        </div>
+        </div>}
       </fieldset>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      {canResolve && <div className="grid gap-3 sm:grid-cols-2">
         <Field label="用户退回金币">
           <TextInput type="number" value={refundCoins} onChange={setRefundCoins} />
         </Field>
         <Field label="陪玩扣除钻石">
           <TextInput type="number" value={deductDiamonds} onChange={setDeductDiamonds} />
         </Field>
-      </div>
+      </div>}
 
-      <label className="block space-y-1">
+      {canResolve && <label className="block space-y-1">
         <span className="text-sm font-black text-slate-700">审核说明</span>
         <textarea
           className="min-h-24 w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
           placeholder="填写纠纷判责、证据采信与资产处理说明"
         />
-      </label>
+      </label>}
     </ModalShell>
   );
 }

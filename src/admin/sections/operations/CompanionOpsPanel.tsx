@@ -129,13 +129,13 @@ export function CompanionManagementPanel() {
       </div>
 
       <DataTable
-        columns={['陪玩ID', '陪玩昵称', '服务类型数量', '陪玩等级', '完成订单数', '评分(人数)', '总收入', '订单收入', '礼物收入', '操作']}
+        columns={['陪玩ID', '陪玩昵称', '服务类型数量', '陪玩等级', '完成订单数', '评分(人数)', '总收入', '订单收入', '礼物收入']}
         rows={q.pageItems.map((row) => {
           const stat = statsById.get(row.id);
           const orderIncome = stat?.orderIncome ?? 0;
           const giftIncome = stat?.giftIncome ?? 0;
           return [
-            <button type="button" onClick={() => setDetail(row)} className="font-black text-emerald-700 hover:underline">{row.id}</button>,
+            <span className="font-black text-emerald-700">{row.id}</span>,
             row.name,
             serviceTypeCount(row),
             row.level,
@@ -144,9 +144,9 @@ export function CompanionManagementPanel() {
             formatNumber(orderIncome + giftIncome),
             formatNumber(orderIncome),
             formatNumber(giftIncome),
-            <MiniActionButton label="移除陪玩" tone="danger" onClick={() => setRemoveTarget(row)} />,
           ];
         })}
+        onRowClick={(rowIndex) => setDetail(q.pageItems[rowIndex])}
         minWidth={1280}
         emptyText="暂无陪玩"
         pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}
@@ -157,6 +157,7 @@ export function CompanionManagementPanel() {
           row={detail}
           mode="manage"
           onClose={() => setDetail(null)}
+          onRemove={() => setRemoveTarget(detail)}
         />
       )}
       {removeTarget && (
@@ -166,6 +167,7 @@ export function CompanionManagementPanel() {
           onConfirm={() => {
             dispatch({ type: 'COMPANION_REVIEW', payload: { id: removeTarget.id, action: '移除陪玩' } });
             toast(`已移除陪玩 ${removeTarget.name}`, 'error');
+            setDetail(null);
             setRemoveTarget(null);
           }}
         />
@@ -261,14 +263,16 @@ export function CompanionAuditPanel() {
             type="checkbox"
             checked={selectedIds.includes(row.key)}
             disabled={row.audit !== '待审核'}
+            onClick={(event) => event.stopPropagation()}
             onChange={() => toggleSelected(row)}
             className="size-4 accent-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
           />,
-          <button type="button" onClick={() => setDetail(row)} className="font-black text-emerald-700 hover:underline">{row.companion.id}</button>,
+          <span className="font-black text-emerald-700">{row.companion.id}</span>,
           row.companion.name,
           row.serviceCategory,
           <Badge label={row.audit} />,
         ])}
+        onRowClick={(rowIndex) => setDetail(q.pageItems[rowIndex])}
         emptyText="暂无审核数据"
         pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage, onPageSizeChange: q.setPageSize }}
       />
@@ -304,6 +308,7 @@ function CompanionDetailModal({
   onClose,
   onApprove,
   onReject,
+  onRemove,
 }: {
   row: CompanionService;
   serviceCategory?: string;
@@ -312,6 +317,7 @@ function CompanionDetailModal({
   onClose: () => void;
   onApprove?: () => void;
   onReject?: () => void;
+  onRemove?: () => void;
 }) {
   const { state } = useAdminStore();
   const categories = Array.from(new Set(row.serviceItems.map((item) => item.category)));
@@ -336,6 +342,8 @@ function CompanionDetailModal({
     <span className="rounded border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-500">
       已完成审核，不可更改状态
     </span>
+  ) : mode === 'manage' && onRemove ? (
+    <MiniActionButton label="移除陪玩" tone="danger" onClick={onRemove} />
   ) : undefined;
 
   return (
@@ -483,7 +491,7 @@ function ConfirmCompanionRemoveModal({
       footerTone="danger"
     >
       <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">
-        移除后该陪玩不会继续展示在陪玩管理列表中，审核状态会更新为已移除。
+        移除后该陪玩不会继续展示在陪玩管理列表中，审核状态会更新为已移除；用户金币、钻石等资产不会清零。
       </div>
     </ModalShell>
   );
