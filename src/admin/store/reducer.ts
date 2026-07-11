@@ -156,10 +156,11 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
       const { id, decision } = action.payload;
       const status = withdrawDecisionStatus[decision];
       const target = state.withdrawals.find((w) => w.id === id);
+      if (!target || target.status !== '待审核') return state;
       const withdrawals = replaceById(state.withdrawals, id, (w) => ({ ...w, status }));
 
       // 审核通过时扣减用户钻石并记一条提现流水。
-      if (decision === '审核通过' && target) {
+      if (decision === '审核通过') {
         let seq = state.seq + 1;
         const users = state.users.map((user) =>
           user.id === target.userId

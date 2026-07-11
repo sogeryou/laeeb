@@ -7,11 +7,13 @@ export function DataTable({
   emptyText = '暂无数据',
   minWidth = 880,
   pagination,
+  onRowClick,
 }: {
   columns: string[];
   rows: React.ReactNode[][];
   emptyText?: string;
   minWidth?: number;
+  onRowClick?: (rowIndex: number) => void;
   pagination?: {
     page: number;
     pageSize: number;
@@ -37,7 +39,11 @@ export function DataTable({
           </thead>
           <tbody>
             {rows.map((row, rowIndex) => (
-              <tr key={`row-${rowIndex}`} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50">
+              <tr
+                key={`row-${rowIndex}`}
+                onClick={onRowClick ? () => onRowClick(rowIndex) : undefined}
+                className={`border-b border-slate-100 last:border-b-0 hover:bg-slate-50 ${onRowClick ? 'cursor-pointer' : ''}`}
+              >
                 {row.map((cell, cellIndex) => (
                   <td
                     key={`cell-${rowIndex}-${cellIndex}`}
