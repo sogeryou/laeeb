@@ -1,5 +1,5 @@
 import { Download } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge, DataTable, Field, SelectInput, TextInput } from '../../components';
 import { useTableQuery } from '../../hooks/useTableQuery';
 import { useAdminStore } from '../../store/useAdminStore';
@@ -7,10 +7,22 @@ import type { CompanionStat, OrderRow, RechargeRecord, WithdrawalRow } from '../
 import { exportCsv } from '../../utils/csv';
 import { diamondsToUsd, formatNumber, formatUsd, getServiceCategory } from '../../utils/format';
 
-/** 数据系统筛选条（ID/时间/类型，docx §3）。 */
+function includesValue(value: string, query: string): boolean {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  return value.toLowerCase().includes(needle);
+}
+
+interface FilterInput {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}
+
+/** 数据系统筛选条（按明确查询键筛选，docx §3）。 */
 function DataFilterBar({
-  keyword,
-  onKeyword,
+  filters,
   typeLabel,
   typeOptions,
   type,
@@ -20,8 +32,7 @@ function DataFilterBar({
   onReset,
   onExport,
 }: {
-  keyword: string;
-  onKeyword: (v: string) => void;
+  filters: FilterInput[];
   typeLabel?: string;
   typeOptions?: string[];
   type?: string;
@@ -31,11 +42,18 @@ function DataFilterBar({
   onReset: () => void;
   onExport: () => void;
 }) {
+  const columnCount = filters.length + (typeOptions && onType ? 1 : 0) + (dateStart || onDateStart ? 1 : 0);
+  const gridClass = columnCount >= 5 ? 'xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]' : 'lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]';
+
   return (
-    <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[1.4fr_1fr_1fr_auto]">
-      <Field label="搜索（ID/昵称/单号）">
-        <TextInput value={keyword} onChange={onKeyword} placeholder="输入关键字" />
-      </Field>
+    <div className={`mb-4 grid gap-3 rounded-md bg-slate-50 p-3 ${gridClass}`}>
+      {filters.map((filter) => (
+        <div key={filter.label}>
+          <Field label={filter.label}>
+            <TextInput value={filter.value} onChange={filter.onChange} placeholder={filter.placeholder} />
+          </Field>
+        </div>
+      ))}
       {typeOptions && onType ? (
         <Field label={typeLabel ?? '类型'}>
           <SelectInput value={type ?? '全部'} onChange={onType} options={typeOptions} />
@@ -43,9 +61,11 @@ function DataFilterBar({
       ) : (
         <div />
       )}
-      <Field label="日期(起)">
-        <TextInput type="date" value={dateStart} onChange={onDateStart} />
-      </Field>
+      {onDateStart && (
+        <Field label="日期(起)">
+          <TextInput type="date" value={dateStart} onChange={onDateStart} />
+        </Field>
+      )}
       <div className="flex items-end gap-2">
         <button type="button" onClick={onReset} className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 hover:bg-slate-50">
           重置
@@ -61,11 +81,17 @@ function DataFilterBar({
 /** 充值数据（docx §3 充值数据字段）。 */
 export function RechargeDataTable() {
   const { state } = useAdminStore();
+  const [userId, setUserId] = useState('');
+  const [innerOrderNo, setInnerOrderNo] = useState('');
+  const [platformOrderId, setPlatformOrderId] = useState('');
   const platformOptions = useMemo(() => ['全部', ...new Set(state.rechargeRecords.map((r) => r.platform))], [state.rechargeRecords]);
   const q = useTableQuery<RechargeRecord>(state.rechargeRecords, {
-    searchKeys: ['userId', 'userName', 'innerOrderNo', 'outerOrderNo'],
     typeKey: 'platform',
     dateKey: 'time',
+    extra: (row) =>
+      includesValue(row.userId, userId) &&
+      includesValue(row.innerOrderNo, innerOrderNo) &&
+      includesValue(row.outerOrderNo, platformOrderId),
   });
 
   const handleExport = () =>
@@ -78,10 +104,19 @@ export function RechargeDataTable() {
   return (
     <>
       <DataFilterBar
-        keyword={q.keyword} onKeyword={q.setKeyword}
+        filters={[
+          { label: '用户ID', value: userId, onChange: (v) => { setUserId(v); q.setPage(1); }, placeholder: '查询用户ID' },
+          { label: '内部订单号', value: innerOrderNo, onChange: (v) => { setInnerOrderNo(v); q.setPage(1); }, placeholder: '查询内部订单号' },
+          { label: '充值平台ID', value: platformOrderId, onChange: (v) => { setPlatformOrderId(v); q.setPage(1); }, placeholder: '查询充值平台ID' },
+        ]}
         typeLabel="充值平台" typeOptions={platformOptions} type={q.type} onType={q.setType}
         dateStart={q.dateRange.start ?? ''} onDateStart={(v) => q.setDateRange({ ...q.dateRange, start: v })}
-        onReset={q.reset} onExport={handleExport}
+        onReset={() => {
+          setUserId('');
+          setInnerOrderNo('');
+          setPlatformOrderId('');
+          q.reset();
+        }} onExport={handleExport}
       />
       <DataTable
         columns={['时间', '账号ID', '昵称', '内部订单号', '外部订单号', '充值美金', '渠道费', '充值金币', '充值平台']}
@@ -97,32 +132,47 @@ export function RechargeDataTable() {
 /** 订单数据（docx §3 订单数据字段）。 */
 export function OrderDataTable() {
   const { state } = useAdminStore();
+  const [userId, setUserId] = useState('');
+  const [epalId, setEpalId] = useState('');
+  const [orderId, setOrderId] = useState('');
   const statusOptions = useMemo(() => ['全部', ...new Set(state.orders.map((o) => o.status))], [state.orders]);
   const q = useTableQuery<OrderRow>(state.orders, {
-    searchKeys: ['userId', 'userName', 'epalId', 'epalName', 'service'],
     statusKey: 'status',
     dateKey: 'time',
+    extra: (row) =>
+      includesValue(row.userId, userId) &&
+      includesValue(row.epalId, epalId) &&
+      includesValue(row.id, orderId),
   });
 
   const handleExport = () =>
     exportCsv(
       '订单数据',
-      ['时间', '用户ID', '用户昵称', '陪玩ID', '陪玩昵称', '服务大类', '单价', '数量', '总额', '订单状态'],
-      q.filtered.map((o) => [o.time, o.userId, o.userName, o.epalId, o.epalName, getServiceCategory(o.service), o.unitPrice, o.quantity, o.total, o.status]),
+      ['时间', '订单ID', '用户ID', '用户昵称', '陪玩ID', '陪玩昵称', '服务大类', '单价', '数量', '总额', '订单状态'],
+      q.filtered.map((o) => [o.time, o.id, o.userId, o.userName, o.epalId, o.epalName, getServiceCategory(o.service), o.unitPrice, o.quantity, o.total, o.status]),
     );
 
   return (
     <>
       <DataFilterBar
-        keyword={q.keyword} onKeyword={q.setKeyword}
+        filters={[
+          { label: '用户ID', value: userId, onChange: (v) => { setUserId(v); q.setPage(1); }, placeholder: '查询用户ID' },
+          { label: '陪玩ID', value: epalId, onChange: (v) => { setEpalId(v); q.setPage(1); }, placeholder: '查询陪玩ID' },
+          { label: '订单ID', value: orderId, onChange: (v) => { setOrderId(v); q.setPage(1); }, placeholder: '查询订单ID' },
+        ]}
         typeLabel="订单状态" typeOptions={statusOptions} type={q.status} onType={q.setStatus}
         dateStart={q.dateRange.start ?? ''} onDateStart={(v) => q.setDateRange({ ...q.dateRange, start: v })}
-        onReset={q.reset} onExport={handleExport}
+        onReset={() => {
+          setUserId('');
+          setEpalId('');
+          setOrderId('');
+          q.reset();
+        }} onExport={handleExport}
       />
       <DataTable
-        columns={['时间', '用户ID', '用户昵称', '陪玩ID', '陪玩昵称', '服务大类', '单价', '数量', '总额', '订单状态']}
-        rows={q.pageItems.map((o) => [o.time, o.userId, o.userName, o.epalId, o.epalName, getServiceCategory(o.service), `${o.unitPrice} 金币`, o.quantity, `${o.total} 金币`, <Badge label={o.status} />])}
-        minWidth={1000}
+        columns={['时间', '订单ID', '用户ID', '用户昵称', '陪玩ID', '陪玩昵称', '服务大类', '单价', '数量', '总额', '订单状态']}
+        rows={q.pageItems.map((o) => [o.time, o.id, o.userId, o.userName, o.epalId, o.epalName, getServiceCategory(o.service), `${o.unitPrice} 金币`, o.quantity, `${o.total} 金币`, <Badge label={o.status} />])}
+        minWidth={1100}
         emptyText="暂无订单数据"
         pagination={{ page: q.page, pageSize: q.pageSize, total: q.total, onPageChange: q.setPage }}
       />
@@ -133,10 +183,12 @@ export function OrderDataTable() {
 /** 提现数据（docx §3 提现数据：提现钻石数/手续费/实发美金）。 */
 export function WithdrawDataTable() {
   const { state } = useAdminStore();
+  const [userId, setUserId] = useState('');
+  const [orderId, setOrderId] = useState('');
   const q = useTableQuery<WithdrawalRow>(state.withdrawals, {
-    searchKeys: ['userId', 'userName', 'orderId'],
     statusKey: 'status',
     dateKey: 'requestedAt',
+    extra: (row) => includesValue(row.userId, userId) && includesValue(row.orderId, orderId),
   });
 
   const handleExport = () =>
@@ -149,10 +201,17 @@ export function WithdrawDataTable() {
   return (
     <>
       <DataFilterBar
-        keyword={q.keyword} onKeyword={q.setKeyword}
+        filters={[
+          { label: '用户ID', value: userId, onChange: (v) => { setUserId(v); q.setPage(1); }, placeholder: '查询用户ID' },
+          { label: '订单ID', value: orderId, onChange: (v) => { setOrderId(v); q.setPage(1); }, placeholder: '查询订单ID' },
+        ]}
         typeLabel="提现状态" typeOptions={['全部', '待审核', '已通过', '已拒绝']} type={q.status} onType={q.setStatus}
         dateStart={q.dateRange.start ?? ''} onDateStart={(v) => q.setDateRange({ ...q.dateRange, start: v })}
-        onReset={q.reset} onExport={handleExport}
+        onReset={() => {
+          setUserId('');
+          setOrderId('');
+          q.reset();
+        }} onExport={handleExport}
       />
       <DataTable
         columns={['申请时间', '用户ID', '昵称', '提现钻石数(美金)', '手续费', '实发美金', '提现状态']}
@@ -180,7 +239,9 @@ export function CompanionDataTable() {
   return (
     <>
       <DataFilterBar
-        keyword={q.keyword} onKeyword={q.setKeyword}
+        filters={[
+          { label: '陪玩ID/昵称', value: q.keyword, onChange: q.setKeyword, placeholder: '查询陪玩ID或昵称' },
+        ]}
         dateStart="" onDateStart={() => {}}
         onReset={q.reset} onExport={handleExport}
       />
