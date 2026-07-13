@@ -279,32 +279,36 @@ function OrderFilterBar({
   onExport: () => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-md bg-slate-50 p-3 lg:grid-cols-[minmax(200px,1fr)_minmax(200px,1fr)_minmax(150px,0.7fr)_minmax(150px,0.7fr)_minmax(150px,0.7fr)_auto]">
-      <Field label="开始时间">
-        <TextInput type="datetime-local" step="1" value={dateStart} onChange={onDateStart} />
-      </Field>
-      <Field label="结束时间">
-        <TextInput type="datetime-local" step="1" value={dateEnd} onChange={onDateEnd} />
-      </Field>
-      <Field label="订单状态">
-        <SelectInput value={status} onChange={onStatus} options={statusOptions} />
-      </Field>
-      <Field label="用户ID">
-        <TextInput value={userId} onChange={onUserId} placeholder="查询用户ID" />
-      </Field>
-      <Field label="陪玩ID">
-        <TextInput value={epalId} onChange={onEpalId} placeholder="查询陪玩ID" />
-      </Field>
-      <div className="flex items-end gap-2">
-        <button type="button" onClick={onQuery} className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-black text-white hover:bg-emerald-800">
-          查询
-        </button>
-        <button type="button" onClick={onReset} className={`${secondaryBtnClass} h-10`}>
-          重置
-        </button>
-        <button type="button" onClick={onExport} className={`${secondaryBtnClass} h-10`}>
-          导出
-        </button>
+    <div className="space-y-3 rounded-md bg-slate-50 p-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(180px,0.75fr)]">
+        <Field label="开始时间">
+          <TextInput type="datetime-local" step="1" value={dateStart} onChange={onDateStart} />
+        </Field>
+        <Field label="结束时间">
+          <TextInput type="datetime-local" step="1" value={dateEnd} onChange={onDateEnd} />
+        </Field>
+        <Field label="订单状态">
+          <SelectInput value={status} onChange={onStatus} options={statusOptions} />
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_auto]">
+        <Field label="用户ID">
+          <TextInput value={userId} onChange={onUserId} placeholder="查询用户ID" />
+        </Field>
+        <Field label="陪玩ID">
+          <TextInput value={epalId} onChange={onEpalId} placeholder="查询陪玩ID" />
+        </Field>
+        <div className="flex items-end gap-2">
+          <button type="button" onClick={onQuery} className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-black text-white hover:bg-emerald-800">
+            查询
+          </button>
+          <button type="button" onClick={onReset} className={`${secondaryBtnClass} h-10`}>
+            重置
+          </button>
+          <button type="button" onClick={onExport} className={`${secondaryBtnClass} h-10`}>
+            导出
+          </button>
+        </div>
       </div>
     </div>
   );
