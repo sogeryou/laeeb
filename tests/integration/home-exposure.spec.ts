@@ -1,0 +1,30 @@
+import express from 'express';
+import request from 'supertest';
+import { expect, it } from 'vitest';
+import { registerHomeExposure } from '../../backend/routes/homeExposure';
+it('uses real profiles, bounded snapshots and deduplicated server-timed events', async () => {
+  const now = Date.now();
+  const ctx: any = { companions: [{ id: 'c', userId: 'p', status: 'APPROVED', availability: 'ONLINE', hourlyRate: 20, gameName: 'Chess', intro: 'Hi' }], users: [{ id: 'p', username: 'Player' }], orders: [], reviews: [], exposureLogs: [{ id: 'old', companionId: 'c', eventType: 'impression', createdAt: now - 86400001 }], persistState() {} };
+  const app = express(); app.use(express.json()); registerHomeExposure(app, ctx);
+  const feed = await request(app).get('/api/home/feed');
+  expect(feed.status).toBe(200); expect(feed.body.items[0].id).toBe('c'); expect(feed.body.items[0].name).toBe('Player');
+  const payload = { snapshot: feed.body.snapshot, events: [{ companionId: 'c', type: 'impression', ts: 1 }] };
+  expect((await request(app).post('/api/home/events').send(payload)).body.accepted).toBe(1);
+  expect((await request(app).post('/api/home/events').send(payload)).body.accepted).toBe(0);
+  expect(ctx.exposureLogs.at(-1).createdAt).toBeGreaterThan(now - 100);
+  expect((await request(app).post('/api/home/events').send({ ...payload, events: [{ companionId: 'other', type: 'click' }] })).status).toBe(400);
+  expect((await request(app).get('/api/home/feed?snapshot=missing&offset=20')).status).toBe(410);
+});
+it('paginates a stable snapshot and excludes offline and capped players', async () => {
+  const ctx: any = { companions: Array.from({ length: 25 }, (_, i) => ({ id: `c${i}`, userId: `p${i}`, status: 'APPROVED', availability: 'ONLINE', hourlyRate: 20, gameName: 'Game' })), users: [], orders: [], reviews: [], exposureLogs: [], persistState() {} };
+  ctx.companions[24].availability = 'OFFLINE';
+  ctx.exposureLogs = Array.from({ length: 15 }, (_, i) => ({ id: `x${i}`, companionId: 'c23', eventType: 'impression', createdAt: Date.now() }));
+  const app = express(); app.use(express.json()); registerHomeExposure(app, ctx);
+  const first = await request(app).get('/api/home/feed');
+  expect(first.body.items).toHaveLength(20); expect(first.body.nextOffset).toBe(20);
+  ctx.companions.length = 0;
+  const second = await request(app).get(`/api/home/feed?snapshot=${first.body.snapshot}&offset=20`);
+  expect(second.body.items).toHaveLength(3); expect(second.body.nextOffset).toBeNull();
+  const ids = [...first.body.items, ...second.body.items].map((e: any) => e.id);
+  expect(new Set(ids).size).toBe(23); expect(ids).not.toContain('c23'); expect(ids).not.toContain('c24');
+});
