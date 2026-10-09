@@ -39,4 +39,8 @@ Run project typecheck, relevant integration/unit suite, build and repository val
 - [x] Server contract and implementation
 - [x] Frontend flow and integration
 - [x] Review and verification
-- [ ] GitHub upload verified
+- [x] GitHub upload verified
+
+Delivery: https://github.com/sogeryou/laeeb/tree/codex/independent-auth
+
+The uploaded application tree `bfd582c4010df9b6dee50fa3188a53625a1a9159` matches the verified local snapshot exactly. The development branch starts from the target repository's existing main commit; main remains unchanged at `899a123488b7bb1ed79166f82bd785a0026dbc4f`. Fresh verification on 2026-10-09: 31 test files and 119 tests passed. This is a source upload, not a production deployment; live email delivery still requires provider configuration and inbox acceptance.
