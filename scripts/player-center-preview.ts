@@ -28,6 +28,7 @@ const now = Date.now();
 state.users.push({ id: 'preview-admin', username: 'Local Test Admin', email: 'admin@local.test', passwordHash: legacyHashPassword('PreviewOnly123!'), role: 'ADMIN', adminRoleTemplate: 'SUPER_ADMIN', permissions: [...ROLE_TEMPLATES.SUPER_ADMIN], createdAt: now, accountStatus: 'ACTIVE' });
 state.users.push({ id: 'preview-player', username: 'Preview Player', email: 'player@local.test', passwordHash: legacyHashPassword('PreviewOnly123!'), role: 'PLAYER', createdAt: now - 60 * 86400000, accountStatus: 'ACTIVE' });
 state.companions.push({ id: 'preview-cp', userId: 'preview-player', gameName: 'Valorant', intro: 'Isolated local acceptance fixture', hourlyRate: 25, status: 'APPROVED', availability: 'ONLINE', createdAt: now - 60 * 86400000, updatedAt: now });
+state.companions[0].services = [{ id: 'preview-ranked-match', name: 'Preview ranked match', unitPrice: 25, unit: 'match' }];
 let balance = 0;
 for (let i = 0; i < 26; i++) {
   const userId = `preview-customer-${i}`;
@@ -45,6 +46,10 @@ for (let i = 0; i < 26; i++) {
 state.diamondWallets['preview-player'] = { userId: 'preview-player', balance, lastUpdated: now };
 // Greeting acceptance fixtures: these users have never ordered from the test player.
 for (let i = 0; i < 25; i++) state.users.push({ id: `preview-new-${String(i).padStart(2, '0')}`, username: `New test customer ${String(i + 1).padStart(2, '0')}`, email: `new${i}@local.test`, passwordHash: i === 0 ? legacyHashPassword('PreviewOnly123!') : 'disabled', role: 'USER', createdAt: now, accountStatus: 'ACTIVE' });
+// Order-loop acceptance data is additive; historical orders remain unfunded legacy records.
+state.wallets['preview-new-00'] = { userId: 'preview-new-00', balance: 500, lastUpdated: now };
+state.couponTemplates.push({ id: 'preview-order-fixed5', name: 'Preview fixed5', type: 'FIXED', value: 5, minSpend: 0, validityDays: 7, maxIssue: 1, scope: 'ALL', createdAt: now });
+state.couponGrants.push({ id: 'preview-order-fixed5-grant', templateId: 'preview-order-fixed5', userId: 'preview-new-00', status: 'ACTIVE', issuedAt: now, expiresAt: now + 7 * 86400000 });
 saveState(state);
 console.log(`Isolated TEST DATA preview: http://localhost:${process.env.PORT}`);
 console.log('Login: player@local.test / PreviewOnly123!');

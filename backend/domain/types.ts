@@ -1,4 +1,5 @@
 import type { RechargeOrder, Wallet, WalletTransaction } from '../../shared/types.js';
+import type { BusinessReview, PersistedOrder } from '../../shared/orders.js';
 import type { OfficialLevel } from '../../shared/playerCenter.js';
 import type { LevelEvent, LevelSettlement } from '../player-center/events.js';
 import type { StoredMessage, StoredPost } from '../routes/social.js';
@@ -104,45 +105,8 @@ export type PersistedState = {
     services?: Array<{ id: string; name: string; unitPrice: number; unit: string }>;
     ranking?: OfficialLevel;
   }>;
-  orders: Array<{
-    id: string;
-    userId: string;
-    companionId: string;
-    serviceName: string;
-    serviceId?: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    status: 'CREATED' | 'ACCEPTED' | 'IN_SERVICE' | 'AWAITING_CONFIRMATION' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED' | 'REFUNDED';
-    workflowVersion?: 2;
-    escrowState?: 'FROZEN' | 'SETTLED' | 'RETURNED';
-    frozenAmount?: number;
-    paidAt?: number;
-    submittedAt?: number;
-    confirmationDueAt?: number;
-    completionEvidence?: string[];
-    disputeEvidence?: string[];
-    createdAt: number;
-    acceptedAt?: number;
-    startedAt?: number;
-    completedAt?: number;
-    cancelledAt?: number;
-    disputeReason?: string;
-    settlementDone?: boolean;
-    updatedAt?: number;
-  }>;
-  reviews: Array<{
-    id: string;
-    orderId: string;
-    userId: string;
-    companionId: string;
-    rating: number;
-    content: string;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
-    moderationReason?: string;
-    createdAt: number;
-    updatedAt?: number;
-  }>;
+  orders: PersistedOrder[];
+  reviews: BusinessReview[];
   riskEvents: Array<{
     id: string;
     type: 'HIGH_FREQUENCY_RECHARGE' | 'ORDER_DISPUTE' | 'NEGATIVE_BALANCE';

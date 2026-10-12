@@ -23,6 +23,7 @@ import { newAuthState } from './auth/state.js';
 import { getCache } from './cache/redis.js';
 import { metricsMiddleware, register as metricsRegister, withdrawPendingCount } from './observability/metrics.js';
 import { zValidate } from './middleware/validate.js';
+import { skipRequestLimit } from './middleware/rateLimit.js';
 import { AdminOperatorPatchSchema } from '../shared/schemas.js';
 import { resolveObjectStore } from './storage/objectStore.js';
 import { startSettlementCron } from './jobs/settlementCron.js';
@@ -73,7 +74,7 @@ async function startServer() {
   app.use(helmet({ contentSecurityPolicy: env.NODE_ENV === 'production' }));
   const allowlist = (process.env.CORS_ALLOWLIST || 'http://localhost:3000,http://localhost:5173').split(',').map(s => s.trim());
   app.use(cors({ origin: allowlist, credentials: true }));
-  app.use(rateLimit({ windowMs: 60_000, max: 600, skip: req => ['/healthz', '/ready', '/metrics'].includes(req.path) }));
+  app.use(rateLimit({ windowMs: 60_000, max: 600, skip: req => skipRequestLimit(req.path, IS_PRODUCTION) }));
   app.use(metricsMiddleware());
   app.use('/api/auth/avatar', express.json({ limit: '3mb' }));
   app.use(express.json({ limit: '1mb' }));

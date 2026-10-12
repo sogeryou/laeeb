@@ -12,6 +12,9 @@ import { viewRequiresAuth } from '../router/guards';
 import { useUiStore } from '../stores/uiStore';
 import { resolveOrderContext } from '../lib/resolveOrderContext';
 import { useSocial } from '../hooks/useSocial';
+import { useOrders } from '../hooks/useOrders';
+import { usePublicCompanionProfile } from '../hooks/usePublicCompanionProfile';
+import { blocksCompanionCheckout, toIMOrder } from '../services/orderPresentation';
 import { AUTH_SESSION_EVENT, restoreSession as restoreAuthSession, storeSession, endSession, refreshSession } from '../features/auth/session';
 import { navigateAuth, takeReturn } from '../features/auth/routing';
 
@@ -375,6 +378,7 @@ export function useAppState() {
     discount: ''
   });
   const [selectedEPal, setSelectedEPal] = useState<EPal | null>(null);
+  const publicProfile = usePublicCompanionProfile(currentView, selectedEPal, setSelectedEPal, authUser?.id);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showGiftPanel, setShowGiftPanel] = useState(false);
   const [selectedGiftId, setSelectedGiftId] = useState<number | null>(0);
@@ -474,10 +478,12 @@ export function useAppState() {
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<EPalServiceVariant | null>(null);
   const [orderQuantity, setOrderQuantity] = useState(1);
-  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([
-    { id: '1', name: 'New User Discount', discount: 5, type: 'FIXED', minSpend: 10 },
-    { id: '2', name: 'Weekend Special', discount: 10, type: 'PERCENTAGE', minSpend: 20 }
-  ]);
+  const refreshOrderBalances = useCallback(async () => {
+    await Promise.all([fetchWallet(), fetchTransactions()]);
+  }, [fetchWallet, fetchTransactions]);
+  const orders = useOrders(authToken, authUser?.id, ['IM', 'MY_ORDERS', 'ORDER_CONFIRM'].includes(currentView), refreshOrderBalances);
+  const availableCoupons = orders.coupons;
+  const setAvailableCoupons = orders.refresh;
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [showServiceTypeModal, setShowServiceTypeModal] = useState(false);
@@ -510,20 +516,29 @@ export function useAppState() {
   const [showServerSelectorModal, setShowServerSelectorModal] = useState(false);
   const [showPlatformSelectorModal, setShowPlatformSelectorModal] = useState(false);
   const [isImSearchExpanded, setIsImSearchExpanded] = useState(false);
-  const [imOrders, setImOrders] = useState<IMOrder[]>([
-    { id: 'o1', epalId: '1', serviceName: 'League of Legends', status: 'COMPLETED', price: 15, timestamp: Date.now() - 86400000, endTime: Date.now() - 86400000 + 3600000, unit: 'Game', unitPrice: 15, quantity: 1 },
-    { id: 'o2', epalId: '3', serviceName: 'Valorant', status: 'COMPLETED', price: 24, timestamp: Date.now() - 172800000, endTime: Date.now() - 172800000 + 3600000, unit: 'Game', unitPrice: 12, quantity: 2 },
-  ]);
+  const imOrders = useMemo(() => orders.items.map(toIMOrder), [orders.items]);
+  const setImOrders = orders.refresh;
   const [showOngoingOrderWarning, setShowOngoingOrderWarning] = useState(false);
   const social = useSocial(authToken, authUser?.id, currentView, selectedEPal);
   const { chatSessions, setChatSessions, currentMessages, setCurrentMessages, messageInput, setMessageInput } = social;
-  const [selectedOrder, setSelectedOrder] = useState<IMOrder | null>(null);
+  const [selectedOrderState, setSelectedOrder] = useState<IMOrder | null>(null);
+  const selectedOrder = imOrders.find(order => order.id === selectedOrderState?.id) ?? null;
   const [showOrderDetailModal, setShowOrderDetailModal] = useState(false);
   const [showImServiceCards, setShowImServiceCards] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTags, setReviewTags] = useState<string[]>([]);
   const [reviewFeedback, setReviewFeedback] = useState('');
+
+  useEffect(() => {
+    setSelectedOrder(null);
+    setShowOrderDetailModal(false);
+    setShowReviewModal(false);
+    setSelectedCoupon(null);
+    setShowCouponModal(false);
+    setReviewFeedback('');
+    setReviewTags([]);
+  }, [authUser?.id]);
 
   useEffect(() => {
     if (showPlaylinkModal && selectedPlaylinkId) {
@@ -682,11 +697,7 @@ export function useAppState() {
       const epal = data?.epal || selectedEPal;
       if (!epal) return;
 
-      const hasOngoingOrder = imOrders.some(order =>
-        order.epalId === epal.id &&
-        order.status !== 'COMPLETED' &&
-        order.status !== 'CANCELLED',
-      );
+      const hasOngoingOrder = imOrders.some(order => blocksCompanionCheckout(order, epal.id));
       if (hasOngoingOrder) {
         setShowOngoingOrderWarning(true);
         return;
@@ -845,7 +856,7 @@ export function useAppState() {
     handleSendAuthEmailCode, handleAuthSubmit, finishAuthSession, handleRecharge,
     selectedCategory, setSelectedCategory, searchQuery, setSearchQuery, selectedGame, setSelectedGame,
     selectedServiceCategory, setSelectedServiceCategory, applicationDetails, setApplicationDetails,
-    selectedEPal, setSelectedEPal, selectedPost, setSelectedPost, showGiftPanel, setShowGiftPanel,
+    selectedEPal, setSelectedEPal, publicProfile, selectedPost, setSelectedPost, showGiftPanel, setShowGiftPanel,
     selectedGiftId, setSelectedGiftId, giftQuantity, setGiftQuantity, showQuantitySelector, setShowQuantitySelector,
     userCoins, setUserCoins, userDiamonds, setUserDiamonds, withdrawAmount, setWithdrawAmount,
     withdrawAddress, setWithdrawAddress, withdrawSubmitting, setWithdrawSubmitting,
@@ -865,7 +876,7 @@ export function useAppState() {
     epalSortBy, setEpalSortBy, epalFilters, setEpalFilters, showEpalFilterModal, setShowEpalFilterModal,
     showRankSelectorModal, setShowRankSelectorModal, showServerSelectorModal, setShowServerSelectorModal,
     showPlatformSelectorModal, setShowPlatformSelectorModal, isImSearchExpanded, setIsImSearchExpanded,
-    chatSessions, setChatSessions, imOrders, setImOrders, showOngoingOrderWarning, setShowOngoingOrderWarning,
+    orders, chatSessions, setChatSessions, imOrders, setImOrders, showOngoingOrderWarning, setShowOngoingOrderWarning,
     currentMessages, setCurrentMessages, messageInput, setMessageInput, selectedOrder, setSelectedOrder,
     showOrderDetailModal, setShowOrderDetailModal, showImServiceCards, setShowImServiceCards,
     showReviewModal, setShowReviewModal, reviewRating, setReviewRating, reviewTags, setReviewTags, reviewFeedback, setReviewFeedback,

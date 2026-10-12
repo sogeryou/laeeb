@@ -4,8 +4,9 @@ import type { AppContext } from '../app/context.js';
 import type { EPal } from '../../shared/types.js';
 import { rankCompanions } from '../algo/m6Exposure.js';
 import { readOfficialLevel } from '../player-center/officialLevel.js';
+import { providerRestricted } from '../orders/eligibility.js';
+import { companionProfile } from '../orders/presentation.js';
 
-const avatar = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#281940"/><text x="50" y="65" text-anchor="middle" font-size="50" fill="white">♟</text></svg>');
 export function registerHomeExposure(app: express.Application, ctx: AppContext) {
   const snapshots = new Map<string, { expires: number; items: EPal[]; seen: Set<string>; delivered: Set<string>; ip: string }>();
   app.get('/api/home/feed', (req, res) => {
@@ -18,7 +19,7 @@ export function registerHomeExposure(app: express.Application, ctx: AppContext) 
     if (!key) {
       if ([...snapshots.values()].filter(s => s.ip === req.ip).length >= 30) return res.status(429).json({ error: 'FEED_RATE_LIMIT' });
       const logs = ctx.exposureLogs.filter(e => e.createdAt > now - 86_400_000 && e.createdAt <= now);
-      const candidates = ctx.companions.filter(c => c.status === 'APPROVED' && c.availability === 'ONLINE' && !readOfficialLevel(c)?.suspended && !['FROZEN', 'RISK_HOLD'].includes(ctx.users.find(u => u.id === c.userId)?.accountStatus || '')).map(c => {
+      const candidates = ctx.companions.filter(c => c.status === 'APPROVED' && c.availability === 'ONLINE' && !providerRestricted(c, ctx.users.find(u => u.id === c.userId))).map(c => {
         const orders = ctx.orders.filter(o => o.companionId === c.id && o.status === 'COMPLETED' && o.settlementDone && (o.completedAt || 0) > now - 30 * 86_400_000);
         const reviews = ctx.reviews.filter(r => r.companionId === c.id && r.status === 'APPROVED' && r.rating >= 1 && r.rating <= 5);
         return { companionId: c.id, level: readOfficialLevel(c)?.level ?? 1, impressions24h: logs.filter(e => e.companionId === c.id && e.eventType === 'impression').length, clicks24h: logs.filter(e => e.companionId === c.id && e.eventType === 'click').length, completedOrders30d: orders.length, avgRating: reviews.length ? reviews.reduce((n, r) => n + r.rating, 0) / reviews.length : 0, activityScore: Math.min(150, orders.length * 3), orderRecencyHours: orders.length ? (now - Math.max(...orders.map(o => o.completedAt || 0))) / 3_600_000 : 9999, availability: c.availability };
@@ -27,7 +28,7 @@ export function registerHomeExposure(app: express.Application, ctx: AppContext) 
       const items: EPal[] = ranked.map(r => {
         const c = ctx.companions.find(c => c.id === r.companionId)!;
         const stats = candidates.find(s => s.companionId === c.id)!;
-        return { id: c.id, name: ctx.users.find(u => u.id === c.userId)?.username || 'Player', avatarUrl: avatar, rating: stats.avgRating, orderCount: String(stats.completedOrders30d), price: c.hourlyRate, game: c.gameName, tags: [], onlineStatus: 'Online', isLegend: r.pool === 'FEATURED', bio: c.intro, services: [{ id: c.id, name: c.gameName, icon: '🎮', posterUrl: avatar, description: c.intro, rating: stats.avgRating, orderCount: String(stats.completedOrders30d), screenshots: [], variants: [{ name: c.gameName, price: c.hourlyRate, unit: 'hr' }] }] };
+        return { ...companionProfile(ctx, c, stats.avgRating, String(stats.completedOrders30d)), isLegend: r.pool === 'FEATURED' };
       });
       while (snapshots.size >= 500) snapshots.delete(snapshots.keys().next().value!);
       key = randomUUID(); snapshots.set(key, { expires: now + 300_000, items, seen: new Set(), delivered: new Set(), ip: req.ip || '' });

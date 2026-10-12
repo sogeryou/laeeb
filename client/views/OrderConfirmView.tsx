@@ -1,478 +1,188 @@
-import React from 'react';
-import { 
-  Search, 
-  Gift, 
-  Gamepad2, 
-  Coffee, 
-  Star, 
-  Home, 
-  Compass, 
-  MessageSquare, 
-  User, 
-  ChevronRight, 
-  Play, 
-  MessageCircle,
-  ArrowLeft,
-  CheckCircle2,
-  Mic2,
-  MapPin,
-  User2,
-  Heart,
-  Venus,
-  Mars,
-  Copy,
-  Check,
-  Plus,
-  Minus,
-  ShoppingCart,
-  Image,
-  Layout,
-  Monitor,
-  Smartphone,
-  Share2,
-  ChevronDown,
-  ChevronUp,
-  Filter,
-  SlidersHorizontal,
-  ThumbsUp,
-  MoreHorizontal,
-  Flag,
-  Users,
-  Zap,
-  Trophy,
-  Send,
-  Bell,
-  Contact,
-  Smile,
-  AlertTriangle,
-  Wallet,
-  CreditCard,
-  History,
-  Settings,
-  X,
-  Camera,
-  LogOut,
-  ShieldCheck,
-  HelpCircle,
-  Gem,
-  ArrowUpRight,
-  ArrowDownLeft,
-  FileText,
-  Calendar,
-  Store,
-  ChevronLeft,
-  Lock,
-  Globe,
-  Shield,
-  Link,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Category, Game, EPal, EPalServiceVariant, Coupon, Playlink, Post, Message, ChatSession, IMOrder, Wallet as WalletType, RechargePackage, WalletTransaction, RechargeOrder } from '@shared/types';
-import { PRODUCT_SEMVER } from '../constants';
-import { GlassCard } from '../components/ui/GlassCard';
-import { IconButton } from '../components/ui/IconButton';
-import { WaveAnimation } from '../components/ui/WaveAnimation';
-import { CoinIcon } from '../components/ui/CoinIcon';
-import { EPalCard } from '../components/cards/EPalCard';
-import { LegendEPalCard } from '../components/cards/LegendEPalCard';
-import { GameGridItem } from '../components/cards/GameGridItem';
-import { WalletView } from '../views/WalletView';
-import { RechargeView } from '../views/RechargeView';
-import { SettingsSubPage } from '../components/SettingsSubPage';
-import { formatChatMessageTime } from '../lib/chatTime';
-
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, CheckCircle2, ChevronRight, LoaderCircle, Minus, Plus, RefreshCw, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useApp } from '../app/AppContext';
+import { GlassCard } from '../components/ui/GlassCard';
+import { CoinIcon } from '../components/ui/CoinIcon';
+import { orderCopy, orderDirection } from '../components/orders/orderCopy';
+import { checkoutRequest, clearPendingCheckout, matchesCheckout, readPendingCheckout, savePendingCheckout, useCheckoutQuote } from '../components/orders/useCheckoutQuote';
+import { definitiveCheckoutRejection, orderError } from '../components/orders/orderError';
 
 export function OrderConfirmView() {
-const {
-    deviceId, locale, setLocale, t, supportedLocales, getLocaleLabel,
-    currentView, setCurrentView, wallet, setWallet, transactions, setTransactions,
-    rechargePackages, setRechargePackages, isRecharging, setIsRecharging,
-    isRecording, setIsRecording, recordingTime, setRecordingTime,
-    pushNotificationsEnabled, setPushNotificationsEnabled, cacheSize, setCacheSize,
-    isAuthenticated, setIsAuthenticated, isAuthenticatedRef, authToken, setAuthToken,
-    showAuthModal, setShowAuthModal, authMode, setAuthMode, authEmail, setAuthEmail,
-    authPassword, setAuthPassword, authUsername, setAuthUsername, authStatus, setAuthStatus,
-    toastMessage, setToastMessage, companionRankings, setCompanionRankings,
-    rankingsLoading, setRankingsLoading, rankingsError, setRankingsError,
-    rankingSortBy, setRankingSortBy, showRankingModal, setShowRankingModal,
-    expandedRankingId, setExpandedRankingId, pendingNavigationRef, authTokenRef,
-    fetchWallet, fetchTransactions, fetchPackages, fetchCompanionRankings, sortedRankings,
-    openAuthModal, notify, requireAuthAction, handleLogout, handleAuthSubmit, handleRecharge,
-    selectedCategory, setSelectedCategory, searchQuery, setSearchQuery, selectedGame, setSelectedGame,
-    selectedServiceCategory, setSelectedServiceCategory, applicationDetails, setApplicationDetails,
-    selectedEPal, setSelectedEPal, selectedPost, setSelectedPost, showGiftPanel, setShowGiftPanel,
-    selectedGiftId, setSelectedGiftId, giftQuantity, setGiftQuantity, showQuantitySelector, setShowQuantitySelector,
-    userCoins, setUserCoins, userDiamonds, setUserDiamonds, withdrawAmount, setWithdrawAmount,
-    withdrawAddress, setWithdrawAddress, withdrawSubmitting, setWithdrawSubmitting,
-    userRole, setUserRole, isPlayerOnline, setIsPlayerOnline, playerApplicationStatus, setPlayerApplicationStatus,
-    playerApplicationStep, setPlayerApplicationStep, playerApplicationData, setPlayerApplicationData,
-    applyGameSearchQuery, setApplyGameSearchQuery, showApplySelectionModal, setShowApplySelectionModal,
-    showGameSelectorModal, setShowGameSelectorModal, focusCommentInput, setFocusCommentInput, commentInputRef,
-    handleWithdrawSubmit, moreEPals, setMoreEPals, loadingMore, setLoadingMore, favorites, setFavorites,
-    playingEPalId, setPlayingEPalId, activeServiceId, setActiveServiceId, selectedVariant, setSelectedVariant,
-    orderQuantity, setOrderQuantity, availableCoupons, setAvailableCoupons, selectedCoupon, setSelectedCoupon,
-    showCouponModal, setShowCouponModal, showServiceTypeModal, setShowServiceTypeModal,
-    profileTab, setProfileTab, selectedPlaylinkId, setSelectedPlaylinkId, showPlaylinkModal, setShowPlaylinkModal,
-    showUnfollowModal, setShowUnfollowModal, epalToUnfollow, setEpalToUnfollow, showServiceDetails, setShowServiceDetails,
-    reviewSortOrder, setReviewSortOrder, selectedReviewTag, setSelectedReviewTag, selectedRatingFilter, setSelectedRatingFilter,
-    showReviewFilterModal, setShowReviewFilterModal, imTab, setImTab, imSearchQuery, setImSearchQuery,
-    walletTab, setWalletTab, walletDate, setWalletDate, selectedApplyGameCategory, setSelectedApplyGameCategory,
-    epalSortBy, setEpalSortBy, epalFilters, setEpalFilters, showEpalFilterModal, setShowEpalFilterModal,
-    showRankSelectorModal, setShowRankSelectorModal, showServerSelectorModal, setShowServerSelectorModal,
-    showPlatformSelectorModal, setShowPlatformSelectorModal, isImSearchExpanded, setIsImSearchExpanded,
-    chatSessions, setChatSessions, imOrders, setImOrders, showOngoingOrderWarning, setShowOngoingOrderWarning,
-    currentMessages, setCurrentMessages, messageInput, setMessageInput, selectedOrder, setSelectedOrder,
-    showOrderDetailModal, setShowOrderDetailModal, showImServiceCards, setShowImServiceCards,
-    showReviewModal, setShowReviewModal, reviewRating, setReviewRating, reviewTags, setReviewTags, reviewFeedback, setReviewFeedback,
-    orderTab, setOrderTab, userStatus, setUserStatus, showStatusModal, setShowStatusModal, viewHistory, setViewHistory,
-    contactsTab, setContactsTab, communityTab, setCommunityTab, showFullSearch, setShowFullSearch,
-    fullSearchQuery, setFullSearchQuery, fullSearchResults, setFullSearchResults,
-    isScrolling, setIsScrolling, copied, setCopied, followedEPals, setFollowedEPals, followersOfMe, mutualFollowers,
-    filteredPosts, toggleFollow, confirmUnfollow, copyToClipboard, observer, lastElementRef, legendEPals,
-    navigateTo, handleBack, loadMore, toggleFavorite, handlePlayToggle, allSortedGames, favoritedGames, alphabet, scrollToLetter, groupedGames,
-    EPALS, GAMES, POSTS,
+  const {
+    locale, authUser, authToken, selectedEPal, activeServiceId, setActiveServiceId, setSelectedVariant,
+    orderQuantity, setOrderQuantity, selectedCoupon, setSelectedCoupon, showCouponModal, setShowCouponModal,
+    showServiceTypeModal, setShowServiceTypeModal, orders, handleBack, navigateTo, setImTab,
   } = useApp();
-
-  return (
-            <motion.div 
-              key="order"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="min-h-screen pb-32 pt-6 px-6 space-y-6"
-            >
-              {/* Header */}
-              <div className="flex items-center gap-4">
-                <button onClick={handleBack} className="p-2 bg-white/5 rounded-xl border border-white/10">
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <h1 className="text-xl font-bold">{t('order.confirmTitle')}</h1>
-              </div>
-
-              {/* Service Info */}
-              <GlassCard className="p-4 flex gap-4">
-                <div className="w-20 h-28 rounded-xl overflow-hidden shrink-0 border border-white/10">
-                  <img 
-                    src={selectedEPal.services?.find(s => s.id === activeServiceId)?.posterUrl || selectedEPal.avatarUrl} 
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-                <div className="flex flex-col justify-center space-y-1">
-                  <h2 className="text-lg font-bold">{selectedEPal.services?.find(s => s.id === activeServiceId)?.name || selectedEPal.game}</h2>
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-bold text-white leading-tight">{selectedEPal.name}</p>
-                    <p className="text-sm font-bold text-white opacity-60 leading-tight">
-                      {t('search.epalIdPrefix')} {selectedEPal.id.slice(0, 8)}
-                    </p>
-                  </div>
-                </div>
-              </GlassCard>
-
-              {/* Service Types */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest px-1">{t('order.serviceType')}</h3>
-                <button 
-                  onClick={() => setShowServiceTypeModal(true)}
-                  className="w-full flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 active:scale-[0.98] transition-all text-left"
-                >
-                  <div className="space-y-0.5">
-                    <span className="text-sm font-bold text-white block">{selectedVariant.name}</span>
-                    <span className="text-[10px] text-purple-400 font-bold uppercase tracking-tight flex items-center gap-1">
-                      {selectedVariant.price} <CoinIcon /> / {selectedVariant.unit}
-                    </span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-
-              {/* Quantity */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center px-1">
-                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{t('order.quantity')}</h3>
-                  <div className="flex items-center gap-2 text-purple-400 font-bold text-sm">
-                    {(() => {
-                      const unit = selectedVariant.unit.toLowerCase();
-                      if (unit.includes('min')) {
-                        const mins = parseInt(unit) || 0;
-                        return t('order.totalMinutes', { n: mins * orderQuantity });
-                      }
-                      if (unit.includes('game')) {
-                        return t('order.totalGames', { n: orderQuantity });
-                      }
-                      if (unit.includes('time')) {
-                        return t('order.totalTimes', { n: orderQuantity });
-                      }
-                      return t('order.totalUnits', { n: orderQuantity, unit: selectedVariant.unit });
-                    })()}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
-                  <span className="text-sm font-bold text-gray-300">{t('order.selectUnits')}</span>
-                  <div className="flex items-center gap-6">
-                    <button 
-                      onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
-                      className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center active:scale-90 transition-all"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="text-lg font-bold w-4 text-center">{orderQuantity}</span>
-                    <button 
-                      onClick={() => setOrderQuantity(orderQuantity + 1)}
-                      className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center active:scale-90 transition-all"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Price Summary */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest px-1">{t('order.priceSummary')}</h3>
-                <GlassCard className="p-5 space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">{t('order.subtotal')}</span>
-                    <span className="font-bold flex items-center gap-1">
-                      {selectedVariant.price * orderQuantity} <CoinIcon />
-                    </span>
-                  </div>
-                  <button 
-                    disabled={availableCoupons.length === 0}
-                    onClick={() => setShowCouponModal(true)}
-                    className={`w-full flex justify-between items-center text-sm transition-all ${
-                      availableCoupons.length > 0 ? 'hover:opacity-70 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
-                    }`}
-                  >
-                    <span className="text-gray-400">{t('order.coupon')}</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`font-bold flex items-center gap-1 ${selectedCoupon ? 'text-green-400' : 'text-gray-500'}`}>
-                        {selectedCoupon ? (
-                          <>
-                            -{selectedCoupon.type === 'FIXED' 
-                              ? selectedCoupon.discount 
-                              : Math.floor((selectedVariant.price * orderQuantity) * (selectedCoupon.discount / 100))} <CoinIcon />
-                          </>
-                        ) : (availableCoupons.length > 0 ? t('order.selectCoupon') : t('order.noCoupons'))}
-                      </span>
-                      {availableCoupons.length > 0 && <ChevronRight className="w-3.5 h-3.5 text-gray-500" />}
-                    </div>
-                  </button>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">{t('order.discount')}</span>
-                    <span className="font-bold text-green-400 flex items-center gap-1">
-                      -{selectedCoupon ? (selectedCoupon.type === 'FIXED' ? selectedCoupon.discount : Math.floor((selectedVariant.price * orderQuantity) * (selectedCoupon.discount / 100))) : 0} <CoinIcon />
-                    </span>
-                  </div>
-                  <div className="h-px bg-white/10" />
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold">{t('order.finalPrice')}</span>
-                    <span className="text-2xl font-bold text-purple-400 flex items-center gap-1.5">
-                      {(() => {
-                        const subtotal = selectedVariant.price * orderQuantity;
-                        let discount = 0;
-                        if (selectedCoupon) {
-                          discount = selectedCoupon.type === 'FIXED' 
-                            ? selectedCoupon.discount 
-                            : Math.floor(subtotal * (selectedCoupon.discount / 100));
-                        }
-                        return Math.max(0, subtotal - discount);
-                      })()} <CoinIcon className="w-5 h-5" textClassName="text-[10px]" />
-                    </span>
-                  </div>
-                </GlassCard>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-8 pt-4 bg-gradient-to-t from-[#0f071a] to-transparent">
-                <div className="max-w-md mx-auto">
-                  <button 
-                    onClick={() => {
-                      if (!selectedEPal || !selectedVariant) return;
-
-                      // Check for ongoing orders
-                      const hasOngoingOrder = imOrders.some(order => 
-                        order.epalId === selectedEPal.id && 
-                        order.status !== 'COMPLETED' && 
-                        order.status !== 'CANCELLED'
-                      );
-
-                      if (hasOngoingOrder) {
-                        setShowOngoingOrderWarning(true);
-                        return;
-                      }
-
-                      // Add new order
-                      const newOrder: IMOrder = {
-                        id: `o${Date.now()}`,
-                        epalId: selectedEPal.id,
-                        serviceName: selectedEPal.services?.find(s => s.id === activeServiceId)?.name || selectedEPal.game,
-                        status: 'PENDING',
-                        price: (() => {
-                          const subtotal = selectedVariant.price * orderQuantity;
-                          let discount = 0;
-                          if (selectedCoupon) {
-                            discount = selectedCoupon.type === 'FIXED' 
-                              ? selectedCoupon.discount 
-                              : Math.floor(subtotal * (selectedCoupon.discount / 100));
-                          }
-                          return Math.max(0, subtotal - discount);
-                        })(),
-                        timestamp: Date.now(),
-                        unit: selectedVariant.unit,
-                        unitPrice: selectedVariant.price,
-                        quantity: orderQuantity
-                      };
-
-                      setImOrders(prev => [newOrder, ...prev]);
-                      navigateTo('IM');
-                      setImTab('ORDER');
-                    }}
-                    className="w-full py-4 rounded-2xl bg-purple-600 font-bold text-lg shadow-[0_0_30px_rgba(168,85,247,0.4)] active:scale-95 transition-all text-white"
-                  >
-                    {t('order.payStart')}
-                  </button>
-                </div>
-              </div>
-
-              {/* Coupon Modal */}
-              <AnimatePresence>
-                {showCouponModal && (
-                  <>
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={() => setShowCouponModal(false)}
-                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
-                    />
-                    <motion.div 
-                      initial={{ y: '100%' }}
-                      animate={{ y: 0 }}
-                      exit={{ y: '100%' }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                      className="fixed bottom-0 left-0 right-0 bg-[#1a0b2e] rounded-t-[32px] border-t border-white/10 z-[101] max-w-md mx-auto p-6 pb-12 space-y-6"
-                    >
-                      <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold">{t('order.couponModalTitle')}</h2>
-                        <button 
-                          onClick={() => setShowCouponModal(false)}
-                          className="text-gray-500 hover:text-white font-bold"
-                        >
-                          {t('order.close')}
-                        </button>
-                      </div>
-
-                      <div className="space-y-3">
-                        <button 
-                          onClick={() => {
-                            setSelectedCoupon(null);
-                            setShowCouponModal(false);
-                          }}
-                          className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${
-                            selectedCoupon === null 
-                              ? 'bg-purple-600/20 border-purple-500/50' 
-                              : 'bg-white/5 border-white/10'
-                          }`}
-                        >
-                          <span className="font-bold">{t('order.noCouponOption')}</span>
-                          {selectedCoupon === null && <CheckCircle2 className="w-5 h-5 text-purple-400" />}
-                        </button>
-
-                        {availableCoupons.map(coupon => {
-                          const subtotal = selectedVariant.price * orderQuantity;
-                          const isDisabled = coupon.minSpend ? subtotal < coupon.minSpend : false;
-                          
-                          return (
-                            <button 
-                              key={coupon.id}
-                              disabled={isDisabled}
-                              onClick={() => {
-                                setSelectedCoupon(coupon);
-                                setShowCouponModal(false);
-                              }}
-                              className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all text-left ${
-                                selectedCoupon?.id === coupon.id 
-                                  ? 'bg-purple-600/20 border-purple-500/50' 
-                                  : isDisabled ? 'bg-white/5 border-white/5 opacity-40 cursor-not-allowed' : 'bg-white/5 border-white/10'
-                              }`}
-                            >
-                              <div className="space-y-1">
-                                <p className="font-bold">{coupon.name}</p>
-                                <p className="text-xs text-gray-500 flex items-center gap-1">
-                                  {coupon.type === 'FIXED' ? <>{coupon.discount} <CoinIcon /> OFF</> : `${coupon.discount}% OFF`}
-                                  {coupon.minSpend && <> • Min spend {coupon.minSpend} <CoinIcon /></>}
-                                </p>
-                              </div>
-                              {selectedCoupon?.id === coupon.id && <CheckCircle2 className="w-5 h-5 text-purple-400" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-
-              {/* Service Type Modal */}
-              <AnimatePresence>
-                {showServiceTypeModal && (
-                  <>
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={() => setShowServiceTypeModal(false)}
-                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
-                    />
-                    <motion.div 
-                      initial={{ y: '100%' }}
-                      animate={{ y: 0 }}
-                      exit={{ y: '100%' }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                      className="fixed bottom-0 left-0 right-0 bg-[#1a0b2e] rounded-t-[32px] border-t border-white/10 z-[101] max-w-md mx-auto p-6 pb-12 space-y-6"
-                    >
-                      <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold">Select Service Type</h2>
-                        <button 
-                          onClick={() => setShowServiceTypeModal(false)}
-                          className="text-gray-500 hover:text-white font-bold"
-                        >
-                          Close
-                        </button>
-                      </div>
-
-                      <div className="space-y-3">
-                        {selectedEPal.services?.find(s => s.id === activeServiceId)?.variants.map((v, idx) => (
-                          <button 
-                            key={idx} 
-                            onClick={() => {
-                              setSelectedVariant(v);
-                              setShowServiceTypeModal(false);
-                            }}
-                            className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all text-left ${
-                              selectedVariant.name === v.name 
-                                ? 'bg-purple-600/20 border-purple-500/50' 
-                                : 'bg-white/5 border-white/10'
-                            }`}
-                          >
-                            <div className="space-y-1">
-                              <p className="font-bold">{v.name}</p>
-                              <p className="text-xs text-purple-400 font-bold uppercase tracking-tight">
-                                <span className="flex items-center gap-1">
-                                  {v.price} <CoinIcon /> / {v.unit}
-                                </span>
-                              </p>
-                            </div>
-                            {selectedVariant.name === v.name && <CheckCircle2 className="w-5 h-5 text-purple-400" />}
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </motion.div>
-  );
+  const copy = orderCopy(locale);
+  const owner = authUser?.id ?? '';
+  const session = JSON.stringify([owner, authToken]);
+  const service = selectedEPal?.services?.find(item => item.id === activeServiceId);
+  const quantity = Math.min(100, Math.max(1, Math.trunc(orderQuantity) || 1));
+  const input = { companionId: selectedEPal?.id ?? '', ...(activeServiceId ? { serviceId: activeServiceId } : {}), quantity, ...(selectedCoupon ? { couponGrantId: selectedCoupon.id } : {}) };
+  const pricing = useCheckoutQuote(input, session, orders.quote, copy.quoteFailed);
+  const quote = pricing.quote;
+  const [submitting, setSubmitting] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const lock = useRef(false);
+  const request = useRef<ReturnType<typeof checkoutRequest> | null>(null);
+  const account = useRef({ owner, generation: 0 });
+  if (account.current.owner !== owner) account.current = { owner, generation: account.current.generation + 1 };
+  const generation = account.current.generation;
+  const [pendingRecord, setPendingRecord] = useState(() => readPendingCheckout(owner));
+  const pending = pendingRecord?.owner === owner ? pendingRecord : null;
+  const recovered = useRef<string | null>(null);
+  const alive = useRef(true);
+  const busy = submitting || !!orders.pendingId;
+  const hasService = !!selectedEPal && (!activeServiceId || !!service);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => { lock.current = false; request.current = readPendingCheckout(owner); setPendingRecord(request.current); setSubmitting(false); setPaymentError(''); recovered.current = null; }, [owner]);
+  useEffect(() => { setPaymentError(''); }, [pricing.key]);
+  useEffect(() => {
+    if (!pending || lock.current || recovered.current === pending.input.requestId) return;
+    const saved = orders.items.find(order => order.role === 'BUYER' && order.userId === owner && order.requestId === pending.input.requestId && order.companionId === pending.input.companionId);
+    if (!saved) return;
+    recovered.current = pending.input.requestId;
+    clearPendingCheckout(pending);
+    request.current = null; setPendingRecord(null);
+    navigateTo('IM'); setImTab('ORDER');
+  }, [pending, orders.items, owner, navigateTo, setImTab, submitting]);
+  const submit = async (retryRequest: ReturnType<typeof checkoutRequest>) => {
+    if (busy || lock.current) return;
+    lock.current = true;
+    setSubmitting(true);
+    setPaymentError('');
+    const startedGeneration = generation;
+    request.current = retryRequest; setPendingRecord(retryRequest); savePendingCheckout(retryRequest);
+    try {
+      const result = await orders.create(retryRequest.input);
+      if (!alive.current || account.current.generation !== startedGeneration) return;
+      if (!result) {
+        const rejection = orders.getError?.() || orders.error;
+        setPaymentError(rejection || copy.failed);
+        if (definitiveCheckoutRejection(rejection)) {
+          clearPendingCheckout(retryRequest); request.current = null; setPendingRecord(null);
+          if (rejection === 'ORDER_PRICE_CHANGED') pricing.retry();
+        }
+        return;
+      }
+      clearPendingCheckout(retryRequest);
+      request.current = null; setPendingRecord(null);
+      navigateTo('IM');
+      setImTab('ORDER');
+    } catch (error) {
+      if (alive.current && account.current.generation === startedGeneration) setPaymentError(error instanceof Error ? error.message : copy.failed);
+    } finally {
+      if (alive.current && account.current.generation === startedGeneration) { lock.current = false; setSubmitting(false); }
+    }
+  };
+  const paymentMatches = !pending || (!!quote && matchesCheckout(pending, input, quote.totalPrice));
+  const pay = () => {
+    if (!quote || pricing.loading || !hasService || !paymentMatches || busy || lock.current) return;
+    return submit(pending || request.current || checkoutRequest(input, quote.totalPrice, owner));
+  };
+  const price = (value: number | undefined) => value ?? '-';
+  const error = paymentError;
+  return <motion.div key="order" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+    dir={orderDirection(locale)} className="min-h-screen pb-40 pt-6 px-6 space-y-6">
+    <div className="flex items-center gap-4">
+      <button type="button" aria-label={copy.back} disabled={busy} onClick={handleBack} className="p-2 bg-white/5 rounded-xl border border-white/10 disabled:opacity-40"><ArrowLeft className="w-5 h-5 rtl:rotate-180" /></button>
+      <h1 className="text-xl font-bold">{copy.confirmTitle}</h1>
+    </div>
+    {selectedEPal && <GlassCard className="p-4 flex gap-4">
+      <div className="w-20 h-28 rounded-xl overflow-hidden shrink-0 border border-white/10">
+        <img src={service?.posterUrl || selectedEPal.avatarUrl} alt={selectedEPal.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+      </div>
+      <div className="min-w-0 flex flex-col justify-center space-y-1">
+        <h2 className="text-lg font-bold break-words">{quote?.serviceName || service?.name || selectedEPal.game}</h2>
+        <p className="text-sm font-bold break-words">{selectedEPal.name}</p>
+        <p className="text-xs text-gray-400 break-all" dir="ltr">{selectedEPal.id.slice(0, 8)}</p>
+      </div>
+    </GlassCard>}
+    <div className="space-y-3">
+      <h3 className="text-xs font-bold text-gray-500 uppercase px-1">{copy.serviceType}</h3>
+      <button type="button" aria-label={copy.selectServiceLabel} disabled={busy || !selectedEPal?.services?.length} onClick={() => setShowServiceTypeModal(true)}
+        className="w-full flex justify-between items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 text-start disabled:opacity-40">
+        <div className="min-w-0 space-y-1">
+          <span className="text-sm font-bold block break-words">{quote?.serviceName || service?.name || copy.selectService}</span>
+          <span className="text-xs text-purple-400 font-bold flex items-center gap-1"><bdi>{price(quote?.unitPrice)}</bdi><CoinIcon /> / {quote?.unit || '-'}</span>
+        </div><ChevronRight className="w-4 h-4 text-gray-500 shrink-0 rtl:rotate-180" />
+      </button>
+    </div>
+    <div className="space-y-3">
+      <div className="flex justify-between items-center gap-3 px-1">
+        <h3 className="text-xs font-bold text-gray-500 uppercase">{copy.quantity}</h3>
+        <span className="text-purple-400 font-bold text-sm"><bdi>{quantity}</bdi> {quote?.unit || ''}</span>
+      </div>
+      <div className="flex flex-wrap gap-3 items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
+        <span className="text-sm font-bold text-gray-300">{copy.selectUnits}</span>
+        <div className="flex items-center gap-4" dir="ltr">
+          <button type="button" aria-label={copy.decrease} disabled={busy || quantity <= 1} onClick={() => setOrderQuantity(Math.max(1, quantity - 1))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center disabled:opacity-40"><Minus className="w-4 h-4" /></button>
+          <span className="text-lg font-bold w-10 text-center">{quantity}</span>
+          <button type="button" aria-label={copy.increase} disabled={busy || quantity >= 100} onClick={() => setOrderQuantity(Math.min(100, quantity + 1))} className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center disabled:opacity-40"><Plus className="w-4 h-4" /></button>
+        </div>
+      </div>
+    </div>
+    <div className="space-y-3">
+      <h3 className="text-xs font-bold text-gray-500 uppercase px-1">{copy.priceSummary}</h3>
+      <GlassCard className="p-5 space-y-4">
+        {pricing.loading && <p role="status" className="text-sm text-gray-400 flex items-center gap-2"><LoaderCircle className="w-4 h-4 animate-spin" />{copy.quoteLoading}</p>}
+        {(pricing.error || !hasService) && <div role="alert" className="space-y-2 text-sm text-red-400"><p className="break-words">{!hasService ? copy.missingService : orderError(pricing.error, locale)}</p><button type="button" onClick={pricing.retry} disabled={busy} className="inline-flex gap-2 items-center text-purple-400"><RefreshCw className="w-4 h-4" />{copy.retry}</button></div>}
+        <div className="flex justify-between gap-3 text-sm"><span className="text-gray-400">{copy.subtotal}</span><span className="font-bold flex items-center gap-1"><bdi>{price(quote?.subtotal)}</bdi><CoinIcon /></span></div>
+        <button type="button" disabled={busy || (!orders.coupons.length && !selectedCoupon)} onClick={() => setShowCouponModal(true)} className="w-full flex justify-between items-center gap-3 text-sm disabled:opacity-60">
+          <span className="text-gray-400">{copy.coupon}</span><span className="flex items-center gap-1 text-purple-400 min-w-0"><span className="break-words">{selectedCoupon?.name || (orders.coupons.length ? copy.selectCoupon : copy.noCoupons)}</span><ChevronRight className="w-3.5 h-3.5 shrink-0 rtl:rotate-180" /></span>
+        </button>
+        <div className="flex justify-between text-sm"><span className="text-gray-400">{copy.discount}</span><span className="font-bold text-green-400 flex items-center gap-1"><bdi>{quote ? `-${quote.discount}` : '-'}</bdi><CoinIcon /></span></div>
+        <div className="h-px bg-white/10" />
+        <div className="flex justify-between items-center gap-3"><span className="font-bold">{copy.finalPrice}</span><span className="text-2xl font-bold text-purple-400 flex items-center gap-1.5"><bdi aria-label={copy.quotedTotal}>{price(quote?.totalPrice)}</bdi><CoinIcon className="w-5 h-5" /></span></div>
+      </GlassCard>
+      {error && <p role="alert" className="text-sm text-red-400 break-words">{orderError(error, locale)}</p>}
+      {pending && !submitting && <div role="status" className="space-y-3 text-sm text-amber-300">
+        <p>{copy.pendingPayment}</p><p>{copy.previousTotal}: <bdi>{pending.input.expectedTotal}</bdi></p>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" disabled={busy} onClick={() => submit(pending)} className="inline-flex items-center gap-2 p-2 bg-white/5 border border-white/10 rounded-xl disabled:opacity-40"><RefreshCw className="w-4 h-4" />{copy.retryPayment}</button>
+          <button type="button" disabled={busy || orders.loading} onClick={async () => { try { await orders.refresh(); } catch (failure) { setPaymentError(failure instanceof Error ? failure.message : copy.failed); } }} className="inline-flex items-center gap-2 p-2 bg-white/5 border border-white/10 rounded-xl disabled:opacity-40"><RefreshCw className="w-4 h-4" />{copy.refresh}</button>
+        </div>
+      </div>}
+    </div>
+    <div className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-4 bg-gradient-to-t from-[#0f071a] to-[#0f071a]/95">
+      <div className="max-w-md mx-auto">
+        <button type="button" aria-label={copy.pay} disabled={busy || pricing.loading || !quote || !hasService || !paymentMatches} onClick={pay}
+          className="w-full py-4 rounded-2xl bg-purple-600 font-bold text-lg shadow-[0_0_30px_rgba(168,85,247,0.4)] text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+          {busy && <LoaderCircle className="w-5 h-5 animate-spin" />}{busy ? copy.paying : copy.pay}
+        </button>
+      </div>
+    </div>
+    <AnimatePresence>
+      {showCouponModal && <>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { if (!busy) setShowCouponModal(false); }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" />
+        <motion.div role="dialog" aria-modal="true" aria-label={copy.selectCoupon} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+          className="fixed bottom-0 left-0 right-0 bg-[#1a0b2e] rounded-t-[32px] border-t border-white/10 z-[101] max-w-md mx-auto p-6 pb-12 max-h-[85dvh] overflow-y-auto space-y-6">
+          <div className="flex justify-between gap-3 items-center"><h2 className="text-xl font-bold">{copy.selectCoupon}</h2><button type="button" aria-label={copy.close} disabled={busy} onClick={() => setShowCouponModal(false)} className="p-2"><X className="w-5 h-5" /></button></div>
+          <div className="space-y-3">
+            <button type="button" disabled={busy} onClick={() => { setSelectedCoupon(null); setShowCouponModal(false); }} className="w-full p-4 rounded-2xl border border-white/10 bg-white/5 text-start">{copy.noCoupon}</button>
+            {orders.coupons.map(coupon => <button type="button" key={coupon.id} disabled={busy} onClick={() => { setSelectedCoupon(coupon); setShowCouponModal(false); }}
+              className={`w-full p-4 rounded-2xl border flex items-center justify-between gap-3 text-start ${selectedCoupon?.id === coupon.id ? 'bg-purple-600/20 border-purple-500/50' : 'bg-white/5 border-white/10'}`}>
+              <div className="min-w-0 space-y-1"><p className="font-bold break-words">{coupon.name}</p><p className="text-xs text-gray-400"><bdi>{coupon.discount}{coupon.type === 'PERCENTAGE' ? '%' : ''}</bdi>{coupon.minSpend != null && <span> · {copy.minSpend} <bdi>{coupon.minSpend}</bdi></span>}</p></div>
+              {selectedCoupon?.id === coupon.id && <CheckCircle2 className="w-5 h-5 text-purple-400 shrink-0" />}
+            </button>)}
+          </div>
+        </motion.div>
+      </>}
+      {showServiceTypeModal && <>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { if (!busy) setShowServiceTypeModal(false); }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" />
+        <motion.div role="dialog" aria-modal="true" aria-label={copy.selectService} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+          className="fixed bottom-0 left-0 right-0 bg-[#1a0b2e] rounded-t-[32px] border-t border-white/10 z-[101] max-w-md mx-auto p-6 pb-12 max-h-[85dvh] overflow-y-auto space-y-6">
+          <div className="flex justify-between items-center gap-3"><h2 className="text-xl font-bold">{copy.selectService}</h2><button type="button" aria-label={copy.close} disabled={busy} onClick={() => setShowServiceTypeModal(false)} className="p-2"><X className="w-5 h-5" /></button></div>
+          <div className="space-y-3">
+            {selectedEPal?.services?.map(item => <button type="button" key={item.id} aria-pressed={activeServiceId === item.id} disabled={busy}
+              onClick={() => { setActiveServiceId(item.id); setSelectedVariant(item.variants[0] ?? null); setShowServiceTypeModal(false); }}
+              className={`w-full p-4 rounded-2xl border flex items-center justify-between gap-3 text-start ${activeServiceId === item.id ? 'bg-purple-600/20 border-purple-500/50' : 'bg-white/5 border-white/10'}`}>
+              <p className="font-bold min-w-0 break-words">{item.name}</p>{activeServiceId === item.id && <CheckCircle2 className="w-5 h-5 text-purple-400 shrink-0" />}
+            </button>)}
+          </div>
+        </motion.div>
+      </>}
+    </AnimatePresence>
+  </motion.div>;
 }

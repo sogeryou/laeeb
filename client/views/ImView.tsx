@@ -82,6 +82,7 @@ import { SettingsSubPage } from '../components/SettingsSubPage';
 import { formatChatMessageTime } from '../lib/chatTime';
 
 import { useApp } from '../app/AppContext';
+import { OrderList } from '../components/orders/OrderList';
 
 export function ImView() {
 const {
@@ -247,79 +248,7 @@ const {
                   )}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {imOrders.map(order => {
-                    const epal = EPALS.find(e => e.id === order.epalId);
-                    if (!epal) return null;
-                    return (
-                      <div 
-                        key={order.id} 
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setShowOrderDetailModal(true);
-                        }}
-                        className="flex items-center gap-4 py-4 border-b border-white/5 hover:bg-white/5 transition-all cursor-pointer group px-2 -mx-2"
-                      >
-                        <div className="relative shrink-0">
-                          <img src={epal.avatarUrl} className="w-14 h-14 rounded-full object-cover border border-white/10" referrerPolicy="no-referrer" />
-                          <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-[#0f071a] ${epal.onlineStatus === 'Online' ? 'bg-green-500' : 'bg-gray-500'}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-center mb-1">
-                            <h4 className="font-bold text-white text-sm truncate">{epal.name}</h4>
-                            <span className="text-[10px] text-gray-500 font-bold">{formatChatMessageTime(order.timestamp)}</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex flex-col min-w-0">
-                              <p className="text-xs text-gray-400 truncate mb-1">{order.serviceName}</p>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                                  order.status === 'COMPLETED' ? 'bg-green-500/10 text-green-400' :
-                                  order.status === 'CANCELLED' ? 'bg-red-500/10 text-red-400' :
-                                  'bg-purple-500/10 text-purple-400'
-                                }`}>
-                                  {order.status}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <span className="text-sm font-black text-white">{order.price}</span>
-                              <CoinIcon className="w-3.5 h-3.5" />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {order.status === 'PENDING' ? (
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigateTo('IM_DETAIL', epal);
-                              }}
-                              className="p-2.5 bg-purple-600 rounded-xl text-white shadow-lg active:scale-90 transition-all"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                            </button>
-                          ) : (order.status === 'COMPLETED' && !order.reviewed) && (
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedOrder(order);
-                                setReviewRating(5);
-                                setReviewTags([]);
-                                setReviewFeedback('');
-                                setShowReviewModal(true);
-                              }}
-                              className="p-2.5 bg-white/10 rounded-xl text-purple-400 hover:bg-purple-500/20 transition-all"
-                            >
-                              <Star className="w-4 h-4" />
-                            </button>
-                          )}
-                          <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-gray-400 transition-colors" />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <OrderList variant="rows" search={imSearchQuery} />
               )}
             </motion.div>
   );

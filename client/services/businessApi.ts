@@ -1,4 +1,7 @@
-import type { RechargeOrder, RechargePackage, Wallet as WalletType, WalletTransaction } from '@shared/types';
+import type { Coupon, EPal, RechargeOrder, RechargePackage, Wallet as WalletType, WalletTransaction } from '@shared/types';
+import type { ManagedCompanionProfile, UpdateCompanionProfile } from '@shared/companionManagement';
+import type { BusinessOrder, BusinessReview, CreateOrderInput, OrderAction, OrderQuote } from '@shared/orders';
+export type { BusinessOrder, BusinessReview } from '@shared/orders';
 
 export type { AuthUser } from '@shared/auth';
 import type { AuthUser } from '@shared/auth';
@@ -40,26 +43,6 @@ export interface CompanionRanking {
     revenue: number;
     riskPenalty: number;
   };
-}
-
-export interface BusinessOrder {
-  id: string;
-  userId: string;
-  companionId: string;
-  serviceName: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  status: 'CREATED' | 'ACCEPTED' | 'IN_SERVICE' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
-}
-
-export interface BusinessReview {
-  id: string;
-  orderId: string;
-  companionId: string;
-  rating: number;
-  content: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
 import { apiUrl, readJsonResponse } from '@shared/apiClient';
@@ -110,6 +93,15 @@ export const businessApi = {
   applyCompanion(token: string, gameName: string, intro: string, hourlyRate: number) {
     return request<CompanionProfile>('/api/companions/apply', 'POST', { gameName, intro, hourlyRate }, token);
   },
+  getManagedCompanionProfile(token: string) {
+    return request<ManagedCompanionProfile>('/api/companions/me/profile', 'GET', undefined, token);
+  },
+  updateManagedCompanionProfile(token: string, input: UpdateCompanionProfile) {
+    return request<ManagedCompanionProfile>('/api/companions/me/profile', 'PATCH', input, token);
+  },
+  getPublicCompanionProfile(id: string) {
+    return request<EPal>(`/api/companions/${encodeURIComponent(id)}/profile`, 'GET');
+  },
   listCompanions(token: string) {
     return request<CompanionProfile[]>('/api/companions?available=true', 'GET', undefined, token);
   },
@@ -117,17 +109,23 @@ export const businessApi = {
     const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
     return request<CompanionRanking[]>(`/api/companions/rankings?limit=${safeLimit}`, 'GET', undefined, token);
   },
-  createOrder(token: string, companionId: string, serviceName: string, quantity: number) {
-    return request<BusinessOrder>('/api/orders', 'POST', { companionId, serviceName, quantity }, token);
+  quoteOrder(token: string, input: Omit<CreateOrderInput, 'requestId' | 'expectedTotal'>) {
+    return request<OrderQuote>('/api/orders/quote', 'POST', input, token);
   },
-  updateOrder(token: string, orderId: string, action: 'accept' | 'start' | 'complete' | 'cancel') {
-    return request<BusinessOrder>(`/api/orders/${orderId}/${action}`, 'POST', {}, token);
+  createOrder(token: string, input: CreateOrderInput) {
+    return request<BusinessOrder>('/api/orders', 'POST', input, token);
+  },
+  updateOrder(token: string, orderId: string, action: OrderAction, body: { evidence?: string[]; reason?: string } = {}) {
+    return request<BusinessOrder>(`/api/orders/${encodeURIComponent(orderId)}/${action}`, 'POST', body, token);
   },
   listOrders(token: string) {
     return request<BusinessOrder[]>('/api/orders', 'GET', undefined, token);
   },
-  createReview(token: string, orderId: string, rating: number, content: string) {
-    return request<BusinessReview>('/api/reviews', 'POST', { orderId, rating, content }, token);
+  createReview(token: string, orderId: string, rating: number, content: string, tags: string[] = []) {
+    return request<BusinessReview>('/api/reviews', 'POST', { orderId, rating, content, tags }, token);
+  },
+  listCoupons(token: string) {
+    return request<Coupon[]>('/api/coupons/me', 'GET', undefined, token);
   },
   listReviews(token: string) {
     return request<BusinessReview[]>('/api/reviews', 'GET', undefined, token);

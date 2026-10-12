@@ -65,6 +65,7 @@ import {
   Globe,
   Shield,
   Link,
+  RotateCw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Category, Game, EPal, EPalServiceVariant, Coupon, Playlink, Post, Message, ChatSession, IMOrder, Wallet as WalletType, RechargePackage, WalletTransaction, RechargeOrder } from '@shared/types';
@@ -131,7 +132,7 @@ const {
     isScrolling, setIsScrolling, copied, setCopied, followedEPals, setFollowedEPals, followersOfMe, mutualFollowers,
     filteredPosts, toggleFollow, confirmUnfollow, copyToClipboard, observer, lastElementRef, legendEPals,
     navigateTo, handleBack, loadMore, toggleFavorite, handlePlayToggle, allSortedGames, favoritedGames, alphabet, scrollToLetter, groupedGames,
-    EPALS, GAMES, POSTS,
+    EPALS, GAMES, POSTS, publicProfile,
   } = useApp();
 
   return (
@@ -142,6 +143,8 @@ const {
               exit={{ opacity: 0, y: 50 }}
               className="space-y-0"
             >
+              {publicProfile?.loading && <p role="status" className="px-6 py-3 text-sm text-gray-400">{locale === 'ar' ? '\u062c\u0627\u0631\u064d \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0644\u0641...' : 'Loading profile...'}</p>}
+              {publicProfile?.error && <div role="alert" className="px-6 py-3 text-sm text-red-400 flex items-center justify-between gap-3"><span>{locale === 'ar' ? '\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0644\u0641' : 'Profile unavailable'}</span><button type="button" aria-label={locale === 'ar' ? '\u0625\u0639\u0627\u062f\u0629 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0644\u0641' : 'Retry profile'} onClick={publicProfile.refresh} className="p-2 text-white" title={locale === 'ar' ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629' : 'Retry'}><RotateCw className="w-5 h-5" /></button></div>}
               <div className="relative h-[35vh]">
                 <img 
                   src={selectedEPal.avatarUrl} 
@@ -326,11 +329,11 @@ const {
                                 </div>
 
                                 {/* Screenshots */}
-                                <img 
+                                {service.screenshots[0] && <img
                                   src={service.screenshots[0]} 
                                   className="w-full h-36 object-cover rounded-2xl border border-white/10" 
                                   referrerPolicy="no-referrer"
-                                />
+                                />}
 
                                 <div className="space-y-4">
                                   <p className="text-gray-400 text-sm leading-relaxed">{service.description}</p>
@@ -409,6 +412,7 @@ const {
                                     {service.variants.map((v, idx) => (
                                       <button 
                                         key={idx} 
+                                        disabled={Boolean(publicProfile?.loading || publicProfile?.error)}
                                         onClick={() => navigateTo('ORDER_CONFIRM', { epal: selectedEPal, variant: v })}
                                         className="flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 active:scale-[0.98] transition-all text-left"
                                       >
@@ -610,6 +614,7 @@ const {
                   </button>
                   <button 
                     onClick={() => selectedEPal && navigateTo('ORDER_CONFIRM', { epal: selectedEPal })}
+                    disabled={Boolean(publicProfile?.loading || publicProfile?.error)}
                     className="flex-1 py-4 rounded-2xl bg-purple-600 font-bold shadow-[0_0_30px_rgba(168,85,247,0.4)] active:scale-95 transition-all flex items-center justify-center gap-3 text-white"
                   >
                     <Play className="w-5 h-5 fill-current" /> Play

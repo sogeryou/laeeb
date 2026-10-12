@@ -3,7 +3,7 @@ import { freezeOrder, actOnOrder, expireOrders } from '../../backend/orders/escr
 
 function setup() {
   const order: any = { id: 'o', userId: 'u', companionId: 'c', totalPrice: 100, status: 'CREATED', createdAt: 1000 };
-  const ctx: any = { orders: [order], companions: [{ id: 'c', userId: 'p' }], wallets: { u: { balance: 200 } }, diamondWallets: {}, walletTransactions: [], persistState() {}, getBanError() { return null; }, getUserById() { return {}; } };
+  const ctx: any = { orders: [order], companions: [{ id: 'c', userId: 'p', status: 'APPROVED' }], wallets: { u: { balance: 200 } }, diamondWallets: {}, walletTransactions: [], persistState() {}, getBanError() { return null; }, getUserById() { return {}; } };
   return { ctx, order };
 }
 it('freezes coins once and credits diamonds only after buyer confirmation', () => {

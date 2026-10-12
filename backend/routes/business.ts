@@ -1,26 +1,32 @@
 import type express from 'express';
-import { CompanionApplySchema, CreateOrderSchema, ExposureBatchSchema } from '../../shared/schemas.js';
+import { randomUUID } from 'node:crypto';
+import { CompanionApplySchema, CreateOrderSchema, CreateReviewSchema, OrderQuoteSchema } from '../../shared/schemas.js';
+import type { BusinessReview, CreateOrderInput } from '../../shared/orders.js';
+import type { Coupon } from '../../shared/types.js';
+import type { OrderEntity } from '../domain/types.js';
 import { rankCompanions } from '../algo/m6Exposure.js';
 import type { AppContext } from '../app/context.js';
 import { zValidate } from '../middleware/validate.js';
 import { assertRateInLevelBand } from '../policy/index.js';
 import { levelFromHourlyRate } from '../policy/leveling.js';
-import type { CouponGrant } from './ops.js';
 import { initialLevel, readOfficialLevel } from '../player-center/officialLevel.js';
 import { recordLevelEvent } from '../player-center/events.js';
 import { freezeOrder, actOnOrder, expireOrders, OrderFlowError, type OrderAction } from '../orders/escrow.js';
+import { orderRequestPayload, quoteOrder, toMinor } from '../orders/pricing.js';
+import { toBusinessOrder } from '../orders/presentation.js';
+import { OrderSaveError, persistOrderMutation } from '../orders/persistence.js';
+import { registerCompanionProfileRoutes } from '../companions/profile.js';
 
 const MODERATION_BLOCKLIST = ['诈骗', 'fraud', 'scam', '色情', 'porn'];
 
 export function registerBusinessRoutes(app: express.Application, ctx: AppContext) {
+  registerCompanionProfileRoutes(app, ctx);
   const {
     authMiddleware,
     companions,
     orders,
     reviews,
     users,
-    exposureImpressions24h,
-    exposureClicks24h,
     exposureLogs,
     couponTemplates,
     couponGrants,
@@ -28,11 +34,21 @@ export function registerBusinessRoutes(app: express.Application, ctx: AppContext
     persistState,
     sendError,
     getWallet,
-    getUserById,
-    getBanError,
-    addDiamonds,
     createRiskEvent,
   } = ctx;
+
+  const orderError = (error: unknown, res: express.Response, next: express.NextFunction) => {
+    if (error instanceof OrderSaveError) return sendError(res, 503, error.message, 'Order persistence unavailable');
+    if (error instanceof OrderFlowError) return sendError(res, error.message === 'ORDER_FORBIDDEN' ? 403 : error.status, error.message, error.message);
+    next(error);
+  };
+
+  app.post('/api/orders/quote', authMiddleware, zValidate(OrderQuoteSchema), (req, res, next) => {
+    try {
+      const body = (req as express.Request & { validatedBody: CreateOrderInput }).validatedBody;
+      res.json(quoteOrder(ctx, (req as any).authUserId, body));
+    } catch (error) { orderError(error, res, next); }
+  });
 
   // The escrow workflow owns all order mutations; old unfunded records need reconciliation.
   app.post('/api/orders/:id/:action', authMiddleware, (req, res, next) => {
@@ -42,12 +58,17 @@ export function registerBusinessRoutes(app: express.Application, ctx: AppContext
       const order = orders.find(o => o.id === req.params.id);
       if (!order) return sendError(res, 404, 'ORDER_NOT_FOUND', 'Order not found');
       if (req.params.action === 'start') return sendError(res, 409, 'ORDER_START_NOT_REQUIRED', 'Acceptance starts service');
-      const result = actOnOrder(ctx, order, (req as any).authUserId, req.params.action as OrderAction, req.body || {});
-      if (req.params.action === 'accept') recordLevelEvent(ctx, { id: `accept:${order.id}`, userId: (req as any).authUserId, kind: 'ACCEPT', referenceId: order.id, at: order.acceptedAt! });
-      persistState(); return res.json(result);
+      const result = persistOrderMutation(ctx, () => {
+        actOnOrder(ctx, order, (req as any).authUserId, req.params.action as OrderAction, req.body || {});
+        if (req.params.action === 'accept') recordLevelEvent(ctx, { id: `accept:${order.id}`, userId: (req as any).authUserId, kind: 'ACCEPT', referenceId: order.id, at: order.acceptedAt! });
+        if (req.params.action === 'dispute' && !ctx.riskEvents.some(event => event.type === 'ORDER_DISPUTE' && event.relatedEntityId === order.id)) {
+          createRiskEvent('ORDER_DISPUTE', order.id, 'MEDIUM', `Order dispute submitted: ${order.disputeReason}`);
+        }
+        return order;
+      });
+      return res.json(toBusinessOrder(ctx, result, (req as any).authUserId));
     } catch (error) {
-      if (error instanceof OrderFlowError) return sendError(res, error.message === 'ORDER_FORBIDDEN' ? 403 : 409, error.message, error.message);
-      next(error);
+      orderError(error, res, next);
     }
   });
 
@@ -61,13 +82,7 @@ export function registerBusinessRoutes(app: express.Application, ctx: AppContext
     }
     const existing = companions.find(c => c.userId === userId);
     if (existing) {
-      existing.gameName = gameName;
-      existing.intro = intro;
-      existing.hourlyRate = hourlyRate;
-      existing.status = 'APPROVED';
-      existing.updatedAt = Date.now();
-      persistState();
-      return res.json(existing);
+      return sendError(res, 409, 'COMPANION_ALREADY_EXISTS', 'Use the profile editor to update an existing companion');
     }
     const companion = {
       id: `cp_${Math.random().toString(36).slice(2, 9)}`,
@@ -191,185 +206,93 @@ export function registerBusinessRoutes(app: express.Application, ctx: AppContext
     res.status(410).json({ error: 'USE_SNAPSHOT_EXPOSURE_ENDPOINT', message: 'Use /api/home/events with a feed snapshot' });
   });
 
-  app.post('/api/orders', authMiddleware, zValidate(CreateOrderSchema), (req, res) => {
-    const userId = (req as any).authUserId as string;
-    const buyer = getUserById(userId);
-    const ban = getBanError(buyer, 'ORDER');
-    if (ban) return sendError(res, 403, 'ORDER_ACTION_BLOCKED', ban);
-    const body = (req as express.Request & { validatedBody: { companionId: string; serviceName?: string; quantity: number; couponGrantId?: string } }).validatedBody;
-    const companion = companions.find(c => c.id === body.companionId && c.status === 'APPROVED');
-    if (!companion) return sendError(res, 404, 'ORDER_COMPANION_NOT_FOUND', 'Companion not found');
-    if (companion.userId === userId) return sendError(res, 409, 'SELF_ORDER_NOT_ALLOWED', 'Cannot order your own service');
-    if (companion.availability !== 'ONLINE') return sendError(res, 409, 'ORDER_COMPANION_UNAVAILABLE', 'Companion unavailable');
-    const level = levelFromHourlyRate(companion.hourlyRate);
-    const priceBand = assertRateInLevelBand(level, companion.hourlyRate);
-    if (!priceBand.ok) {
-      return sendError(res, 422, 'PRICE_OUT_OF_LEVEL_BAND', 'Companion price out of level band', { band: priceBand.band });
-    }
-    const qty = body.quantity;
-    let totalPrice = companion.hourlyRate * qty;
-    let couponGrant: CouponGrant | undefined;
-    if (body.couponGrantId) {
-      couponGrant = couponGrants.find(g => g.id === body.couponGrantId && g.userId === userId);
-      if (!couponGrant || couponGrant.status !== 'ACTIVE' || couponGrant.expiresAt < Date.now()) {
-        return sendError(res, 400, 'COUPON_INVALID', 'Coupon grant invalid');
+  app.post('/api/orders', authMiddleware, zValidate(CreateOrderSchema), (req, res, next) => {
+    try {
+      const userId = (req as any).authUserId as string;
+      const body = (req as express.Request & { validatedBody: CreateOrderInput }).validatedBody;
+      const requestPayload = orderRequestPayload(body);
+      const existing = body.requestId ? orders.find(order => order.userId === userId && order.requestId === body.requestId) : undefined;
+      if (existing) {
+        if (existing.requestPayload !== requestPayload) throw new OrderFlowError('ORDER_REQUEST_ID_CONFLICT');
+        expireOrders(ctx);
+        return res.json(toBusinessOrder(ctx, existing, userId));
       }
-      const tpl = couponTemplates.find(t => t.id === couponGrant!.templateId);
-      if (!tpl) return sendError(res, 400, 'COUPON_TEMPLATE_MISSING', 'Coupon template missing');
-      if (totalPrice < tpl.minSpend) return sendError(res, 400, 'COUPON_MIN_SPEND', 'Order below coupon minimum');
-      const discount = tpl.type === 'FIXED' ? tpl.value : Math.min(totalPrice, totalPrice * (tpl.value / 100));
-      totalPrice = Math.max(0, Math.round((totalPrice - discount) * 100) / 100);
-    }
-    const userWallet = getWallet(userId);
-    if (userWallet.balance < totalPrice) return sendError(res, 409, 'WALLET_INSUFFICIENT_BALANCE', 'Insufficient wallet balance');
-    const order = {
-      id: `ord_${Math.random().toString(36).slice(2, 9)}`,
-      userId,
-      companionId: body.companionId,
-      serviceName: body.serviceName || companion.gameName,
-      quantity: qty,
-      unitPrice: companion.hourlyRate,
-      totalPrice,
-      status: 'CREATED' as const,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    freezeOrder(ctx, order);
-    recordLevelEvent(ctx, { id: `accept-opportunity:${order.id}`, userId: companion.userId, kind: 'ACCEPT_OPPORTUNITY', referenceId: order.id, at: order.createdAt });
-    orders.push(order);
-    if (couponGrant) {
-      couponGrant.status = 'USED';
-      couponGrant.usedAt = Date.now();
-      couponGrant.orderId = order.id;
-    }
-    persistState();
-    res.status(201).json(order);
-  });
-
-  app.get('/api/orders', authMiddleware, (req, res) => {
-    expireOrders(ctx);
-    const userId = (req as any).authUserId as string;
-    const companion = companions.find(c => c.userId === userId);
-    const list = orders.filter(
-      o => o.userId === userId || (companion && o.companionId === companion.id)
-    );
-    res.json(list);
-  });
-
-  const updateOrderStatus = (
-    orderId: string,
-    allowedCurrent: Array<typeof orders[number]['status']>,
-    nextStatus: typeof orders[number]['status'],
-    actorUserId: string
-  ) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return { errorCode: 'ORDER_NOT_FOUND', errorMessage: 'Order not found', statusCode: 404 as const };
-    const actorCompanion = companions.find(c => c.userId === actorUserId);
-    const isCompanionOwner = actorCompanion?.id === order.companionId;
-    const isUserOwner = order.userId === actorUserId;
-    if (!isCompanionOwner && !isUserOwner) return { errorCode: 'ORDER_FORBIDDEN', errorMessage: 'Forbidden', statusCode: 403 as const };
-    if (nextStatus === 'ACCEPTED' && isCompanionOwner) {
-      const actorUser = getUserById(actorUserId);
-      const ban = getBanError(actorUser, 'ACCEPT_ORDER');
-      if (ban) return { errorCode: 'ORDER_ACTION_BLOCKED', errorMessage: ban, statusCode: 403 as const };
-    }
-    if (!allowedCurrent.includes(order.status)) {
-      return {
-        errorCode: 'ORDER_INVALID_TRANSITION',
-        errorMessage: `Invalid transition from ${order.status}`,
-        statusCode: 409 as const,
-        details: { from: order.status, to: nextStatus }
+      const quote = quoteOrder(ctx, userId, body);
+      expireOrders(ctx);
+      if (orders.some(order => order.userId === userId && order.companionId === body.companionId && order.workflowVersion === 2
+        && ['CREATED', 'IN_SERVICE', 'AWAITING_CONFIRMATION', 'DISPUTED'].includes(order.status))) throw new OrderFlowError('ORDER_ONGOING_EXISTS');
+      if (body.expectedTotal !== undefined && toMinor(body.expectedTotal) !== toMinor(quote.totalPrice)) throw new OrderFlowError('ORDER_PRICE_CHANGED');
+      const now = Date.now();
+      const order: OrderEntity = {
+        ...quote, id: `ord_${randomUUID()}`, userId, status: 'CREATED', createdAt: now, updatedAt: now,
+        ...(body.requestId ? { requestId: body.requestId, requestPayload } : {}),
       };
-    }
-    order.status = nextStatus;
-    if (nextStatus === 'ACCEPTED') order.acceptedAt = Date.now();
-    if (nextStatus === 'IN_SERVICE') order.startedAt = Date.now();
-    if (nextStatus === 'COMPLETED') order.completedAt = Date.now();
-    if (nextStatus === 'CANCELLED') order.cancelledAt = Date.now();
-    order.updatedAt = Date.now();
-    persistState();
-    return { order };
-  };
-
-  app.post('/api/orders/:id/accept', authMiddleware, (req, res) => {
-    const result = updateOrderStatus(req.params.id, ['CREATED'], 'ACCEPTED', (req as any).authUserId);
-    if ('errorCode' in result) return sendError(res, result.statusCode, result.errorCode, result.errorMessage, result.details);
-    res.json(result.order);
-  });
-
-  app.post('/api/orders/:id/start', authMiddleware, (req, res) => {
-    const result = updateOrderStatus(req.params.id, ['ACCEPTED'], 'IN_SERVICE', (req as any).authUserId);
-    if ('errorCode' in result) return sendError(res, result.statusCode, result.errorCode, result.errorMessage, result.details);
-    res.json(result.order);
-  });
-
-  app.post('/api/orders/:id/complete', authMiddleware, (req, res) => {
-    const actorUserId = (req as any).authUserId as string;
-    const result = updateOrderStatus(req.params.id, ['IN_SERVICE'], 'COMPLETED', actorUserId);
-    if ('errorCode' in result) return sendError(res, result.statusCode, result.errorCode, result.errorMessage, result.details);
-    const order = result.order!;
-    if (!order.settlementDone) {
-      const wallet = getWallet(order.userId);
-      wallet.balance -= order.totalPrice;
-      wallet.lastUpdated = Date.now();
-      ctx.walletTransactions.unshift({
-        id: `tx_o_${Math.random().toString(36).slice(2, 9)}`,
-        userId: order.userId,
-        type: 'ORDER_PAY',
-        amount: -order.totalPrice,
-        balanceAfter: wallet.balance,
-        referenceId: order.id,
-        timestamp: Date.now(),
-        description: `Order payment ${order.serviceName}`
+      persistOrderMutation(ctx, () => {
+        ctx.wallets[userId] ||= { userId, balance: 0, lastUpdated: now };
+        freezeOrder(ctx, order, now);
+        const companion = companions.find(c => c.id === body.companionId)!;
+        recordLevelEvent(ctx, { id: `accept-opportunity:${order.id}`, userId: companion.userId, kind: 'ACCEPT_OPPORTUNITY', referenceId: order.id, at: now });
+        orders.push(order);
+        if (body.couponGrantId) {
+          const grant = couponGrants.find(g => g.id === body.couponGrantId && g.userId === userId)!;
+          Object.assign(grant, { status: 'USED', usedAt: now, orderId: order.id });
+        }
       });
-      const cp = companions.find(c => c.id === order.companionId);
-      if (cp) addDiamonds(cp.userId, order.totalPrice, order.id, `Order income ${order.serviceName}`);
-      order.settlementDone = true;
-      persistState();
-    }
-    res.json(order);
+      res.status(201).json(toBusinessOrder(ctx, order, userId));
+    } catch (error) { orderError(error, res, next); }
   });
 
-  app.post('/api/orders/:id/cancel', authMiddleware, (req, res) => {
-    const result = updateOrderStatus(req.params.id, ['CREATED', 'ACCEPTED'], 'CANCELLED', (req as any).authUserId);
-    if ('errorCode' in result) return sendError(res, result.statusCode, result.errorCode, result.errorMessage, result.details);
-    res.json(result.order);
+  app.get('/api/orders', authMiddleware, (req, res, next) => {
+    try {
+      expireOrders(ctx);
+      const userId = (req as any).authUserId as string;
+      const list = orders.filter(
+        o => o.userId === userId || companions.some(c => c.userId === userId && c.id === o.companionId)
+      );
+      res.json(list.map(order => toBusinessOrder(ctx, order, userId)));
+    } catch (error) { orderError(error, res, next); }
   });
 
-  app.post('/api/orders/:id/dispute', authMiddleware, (req, res) => {
-    const result = updateOrderStatus(req.params.id, ['IN_SERVICE', 'COMPLETED'], 'DISPUTED', (req as any).authUserId);
-    if ('errorCode' in result) return sendError(res, result.statusCode, result.errorCode, result.errorMessage, result.details);
-    result.order!.disputeReason = req.body?.reason || 'No reason provided';
-    createRiskEvent('ORDER_DISPUTE', result.order!.id, 'MEDIUM', `Order dispute submitted: ${result.order!.disputeReason}`);
-    persistState();
-    res.json(result.order);
-  });
-
-  app.post('/api/reviews', authMiddleware, (req, res) => {
+  app.get('/api/coupons/me', authMiddleware, (req, res) => {
     const userId = (req as any).authUserId as string;
-    const { orderId, rating, content } = req.body || {};
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return sendError(res, 404, 'ORDER_NOT_FOUND', 'Order not found');
-    if (order.userId !== userId) return sendError(res, 403, 'REVIEW_BUYER_ONLY', 'Only buyer can review');
-    if (order.status !== 'COMPLETED') return sendError(res, 409, 'REVIEW_ORDER_NOT_COMPLETED', 'Order not completed');
-    if (reviews.some(r => r.orderId === orderId)) return sendError(res, 409, 'REVIEW_ALREADY_EXISTS', 'Review already exists');
-    const lower = String(content || '').toLowerCase();
-    const blocked = MODERATION_BLOCKLIST.find(keyword => lower.includes(keyword));
-    const review = {
-      id: `rev_${Math.random().toString(36).slice(2, 9)}`,
-      orderId,
-      userId,
-      companionId: order.companionId,
-      rating: Number(rating || 5),
-      content: String(content || ''),
-      status: blocked ? ('REJECTED' as const) : ('APPROVED' as const),
-      moderationReason: blocked ? `Blocked keyword: ${blocked}` : undefined,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    reviews.unshift(review);
-    persistState();
-    res.status(201).json(review);
+    const now = Date.now();
+    const coupons: Coupon[] = couponGrants
+      .filter(grant => grant.userId === userId && grant.status === 'ACTIVE' && Number.isFinite(grant.expiresAt) && grant.expiresAt > now)
+      .flatMap(grant => {
+        const template = couponTemplates.find(t => t.id === grant.templateId);
+        return template ? [{ id: grant.id, name: template.name, discount: template.value, type: template.type === 'FIXED' ? 'FIXED' as const : 'PERCENTAGE' as const, minSpend: template.minSpend }] : [];
+      });
+    res.json(coupons);
+  });
+
+  app.post('/api/reviews', authMiddleware, zValidate(CreateReviewSchema), (req, res, next) => {
+    try {
+      const userId = (req as any).authUserId as string;
+      const { orderId, rating, content, tags } = (req as express.Request & { validatedBody: { orderId: string; rating: number; content: string; tags?: string[] } }).validatedBody;
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return sendError(res, 404, 'ORDER_NOT_FOUND', 'Order not found');
+      if (order.userId !== userId) return sendError(res, 403, 'REVIEW_BUYER_ONLY', 'Only buyer can review');
+      if (order.workflowVersion !== 2) throw new OrderFlowError('LEGACY_ORDER_RECONCILIATION_REQUIRED');
+      if (order.status !== 'COMPLETED') return sendError(res, 409, 'REVIEW_ORDER_NOT_COMPLETED', 'Order not completed');
+      if (reviews.some(r => r.orderId === orderId)) return sendError(res, 409, 'REVIEW_ALREADY_EXISTS', 'Review already exists');
+      const lower = [content, ...(tags || [])].join(' ').toLowerCase();
+      const blocked = MODERATION_BLOCKLIST.find(keyword => lower.includes(keyword));
+      const review: BusinessReview = {
+        id: `rev_${Math.random().toString(36).slice(2, 9)}`,
+        orderId,
+        userId,
+        companionId: order.companionId,
+        rating,
+        content,
+        ...(tags ? { tags } : {}),
+        status: blocked ? ('REJECTED' as const) : ('APPROVED' as const),
+        moderationReason: blocked ? `Blocked keyword: ${blocked}` : undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      persistOrderMutation(ctx, () => { reviews.unshift(review); });
+      res.status(201).json(review);
+    } catch (error) { orderError(error, res, next); }
   });
 
   app.get('/api/reviews', authMiddleware, (req, res) => {

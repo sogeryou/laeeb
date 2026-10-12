@@ -1,7 +1,12 @@
 import type { AppContext } from '../app/context.js';
 import type { OrderEntity } from '../domain/types.js';
+import type { OrderAction as ParticipantOrderAction } from '../../shared/orders.js';
+import { providerRestricted } from './eligibility.js';
+import { persistOrderMutation } from './persistence.js';
 
-export class OrderFlowError extends Error {}
+export class OrderFlowError extends Error {
+  constructor(code: string, public readonly status = 409) { super(code); }
+}
 const fail = (code: string): never => { throw new OrderFlowError(code); };
 const cents = (n: number) => Math.round(n * 100);
 const money = (n: number) => n / 100;
@@ -42,7 +47,7 @@ function release(ctx: AppContext, order: OrderEntity, refund: boolean, now: numb
   }
   order.updatedAt = now;
 }
-export type OrderAction = 'accept' | 'complete' | 'confirm' | 'cancel' | 'dispute' | 'refund' | 'uphold';
+export type OrderAction = ParticipantOrderAction | 'refund' | 'uphold';
 export function actOnOrder(ctx: AppContext, order: OrderEntity, actor: string, action: OrderAction, body: { evidence?: unknown; reason?: unknown } = {}, now = Date.now(), admin = false) {
   if (order.workflowVersion !== 2) fail('LEGACY_ORDER_RECONCILIATION_REQUIRED');
   const player = ctx.companions.find(c => c.id === order.companionId);
@@ -54,7 +59,8 @@ export function actOnOrder(ctx: AppContext, order: OrderEntity, actor: string, a
   if (action === 'uphold' && order.status === 'COMPLETED' && order.escrowState === 'SETTLED') return order;
   if (action === 'accept') {
     if (order.status !== 'CREATED' || now >= order.paidAt! + 900_000) fail('ORDER_INVALID_TRANSITION');
-    if (ctx.getBanError(ctx.getUserById(actor), 'ACCEPT_ORDER')) fail('ORDER_ACTION_BLOCKED');
+    const user = ctx.getUserById(actor);
+    if (player!.status !== 'APPROVED' || !user || providerRestricted(player!, user) || ctx.getBanError(user, 'ACCEPT_ORDER')) throw new OrderFlowError('ORDER_ACTION_BLOCKED', 403);
     order.status = 'IN_SERVICE'; order.acceptedAt = now; order.startedAt = now;
   } else if (action === 'complete') {
     if (order.status !== 'IN_SERVICE') fail('ORDER_INVALID_TRANSITION');
@@ -79,14 +85,11 @@ export function actOnOrder(ctx: AppContext, order: OrderEntity, actor: string, a
   return order;
 }
 export function expireOrders(ctx: AppContext, now = Date.now()) {
-  let changed = false;
-  for (const order of ctx.orders) {
-    if (order.workflowVersion !== 2 || order.escrowState !== 'FROZEN') continue;
-    if (order.status === 'CREATED' && now >= order.paidAt! + 900_000) {
-      actOnOrder(ctx, order, order.userId, 'cancel', {}, now); changed = true;
-    } else if (order.status === 'AWAITING_CONFIRMATION' && now >= order.confirmationDueAt!) {
-      actOnOrder(ctx, order, order.userId, 'confirm', {}, now); changed = true;
-    }
-  }
-  if (changed) ctx.persistState();
+  const expired = ctx.orders.filter(order => order.workflowVersion === 2 && order.escrowState === 'FROZEN'
+    && ((order.status === 'CREATED' && now >= order.paidAt! + 900_000)
+      || (order.status === 'AWAITING_CONFIRMATION' && now >= order.confirmationDueAt!)));
+  if (!expired.length) return;
+  persistOrderMutation(ctx, () => {
+    for (const order of expired) actOnOrder(ctx, order, order.userId, order.status === 'CREATED' ? 'cancel' : 'confirm', {}, now);
+  });
 }

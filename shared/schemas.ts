@@ -34,11 +34,25 @@ export const CompanionApplySchema = z.object({
   hourlyRate: z.number().positive().max(500),
 });
 
-export const CreateOrderSchema = z.object({
-  companionId: z.string().min(1),
+export const OrderQuoteSchema = z.object({
+  companionId: z.string().min(1).max(128),
+  serviceId: z.string().min(1).max(128).optional(),
   serviceName: z.string().max(120).optional(),
   quantity: z.coerce.number().int().positive().max(100).default(1),
-  couponGrantId: z.string().optional(),
+  couponGrantId: z.string().min(1).max(128).optional(),
+});
+
+export const CreateOrderSchema = OrderQuoteSchema.extend({
+  requestId: z.string().trim().min(1).max(128).optional(),
+  expectedTotal: z.number().finite().nonnegative().max(Number.MAX_SAFE_INTEGER / 100)
+    .refine(value => Math.abs(value * 100 - Math.round(value * 100)) < 0.000001, 'Amount must use integer hundredths').optional(),
+});
+
+export const CreateReviewSchema = z.object({
+  orderId: z.string().min(1).max(128),
+  rating: z.number().int().min(1).max(5),
+  content: z.string().max(2000).default(''),
+  tags: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
 });
 
 export const WithdrawRequestSchema = z.object({

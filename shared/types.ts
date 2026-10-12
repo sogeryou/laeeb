@@ -32,6 +32,10 @@ export interface ChatSession {
 }
 
 export interface IMOrder {
+  source?: import('./orders.js').BusinessOrder;
+  participant?: EPal;
+  role?: 'BUYER' | 'COMPANION';
+  businessStatus?: import('./orders.js').BusinessOrder['status'];
   id: string;
   /** Optional legacy prototype aliases; new adapters use serviceName, timestamp and price. */
   gameName?: string;
