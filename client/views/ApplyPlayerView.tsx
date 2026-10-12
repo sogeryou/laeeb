@@ -82,6 +82,9 @@ import { SettingsSubPage } from '../components/SettingsSubPage';
 import { formatChatMessageTime } from '../lib/chatTime';
 
 import { useApp } from '../app/AppContext';
+import { refreshApprovedOwnerSession } from '../components/application/approvedSession';
+import { applicationErrorText } from '../components/application/applicationCopy';
+import { isValidApplicationPrice } from '../components/application/applicationModel';
 
 export function ApplyPlayerView() {
 const {
@@ -131,8 +134,23 @@ const {
     isScrolling, setIsScrolling, copied, setCopied, followedEPals, setFollowedEPals, followersOfMe, mutualFollowers,
     filteredPosts, toggleFollow, confirmUnfollow, copyToClipboard, observer, lastElementRef, legendEPals,
     navigateTo, handleBack, loadMore, toggleFavorite, handlePlayToggle, allSortedGames, favoritedGames, alphabet, scrollToLetter, groupedGames,
-    EPALS, GAMES, POSTS,
+    EPALS, GAMES, POSTS, companionApplication, authUser,
   } = useApp();
+
+  const unavailable = locale === 'ar' ? 'غير متاح حالياً' : 'Currently unavailable';
+  const confirmApproved = async () => {
+    if (!authToken || !authUser?.id) return;
+    const owner = authUser.id;
+    const token = authToken;
+    try {
+      const confirmed = await refreshApprovedOwnerSession(token, owner, companionApplication.sessionGuard(owner, token));
+      if (!confirmed) {
+        await companionApplication.refresh();
+        return;
+      }
+      navigateTo('PLAYER_CENTER');
+    } catch { await companionApplication.refresh(); }
+  };
 
   return (
     <>
@@ -175,7 +193,10 @@ const {
                   ))}
                 </div>
 
-                {playerApplicationStatus === 'PENDING' ? (
+                {companionApplication.error && <div role="alert" className="flex items-center justify-between gap-3 text-sm text-red-300"><span className="min-w-0 break-words">{applicationErrorText(companionApplication.error, locale)}</span><button onClick={() => void companionApplication.refresh()} className="shrink-0 underline">{locale === 'ar' ? 'تحديث' : 'Refresh'}</button></div>}
+                {companionApplication.loading && !companionApplication.application ? (
+                  <div role="status" className="py-12 text-center text-gray-400">{locale === 'ar' ? 'جار تحميل الطلب...' : 'Loading application...'}</div>
+                ) : playerApplicationStatus === 'PENDING' ? (
                   <div className="flex-1 flex flex-col items-center justify-center py-20 space-y-6 text-center">
                     <div className="w-24 h-24 rounded-[40px] bg-purple-600/10 border border-purple-500/20 flex items-center justify-center">
                       <History className="w-12 h-12 text-purple-400 animate-spin-slow" />
@@ -191,8 +212,19 @@ const {
                       {t('apply.backToProfile')}
                     </button>
                   </div>
+                ) : playerApplicationStatus === 'REJECTED' && !companionApplication.editing ? (
+                  <div className="space-y-6 py-12 text-center">
+                    <h2 className="text-xl font-bold text-white">{locale === 'ar' ? 'تم رفض الطلب' : 'Application rejected'}</h2>
+                    <p className="whitespace-pre-wrap break-words text-gray-300">{companionApplication.application?.rejectionReason}</p>
+                    <button onClick={() => { companionApplication.editRejected(); setPlayerApplicationStep(1); }} className="px-8 py-4 bg-purple-600 rounded-2xl font-bold text-white">{locale === 'ar' ? 'تعديل وإعادة التقديم' : 'Edit and resubmit'}</button>
+                  </div>
+                ) : playerApplicationStatus === 'APPROVED' ? (
+                  <div className="space-y-6 py-12 text-center">
+                    <h2 className="text-xl font-bold text-white">{locale === 'ar' ? 'تمت الموافقة على طلبك' : 'Application approved'}</h2>
+                    <button onClick={confirmApproved} className="px-8 py-4 bg-purple-600 rounded-2xl font-bold text-white">{locale === 'ar' ? 'مركز اللاعب' : 'Player Center'}</button>
+                  </div>
                 ) : (
-                  <div className="space-y-8">
+                  <fieldset disabled={companionApplication.busy || companionApplication.attemptPending} className="space-y-8">
                     {/* Step 1: Select Category */}
                     {playerApplicationStep === 1 && (
                       <div className="space-y-6">
@@ -396,30 +428,7 @@ const {
                             />
                           </div>
 
-                          <div className="space-y-3">
-                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">{t('apply.fieldScreenshot')}</p>
-                            <div className="space-y-3">
-                              {playerApplicationData.screenshots.length > 0 ? (
-                                <div className="w-full aspect-video rounded-2xl overflow-hidden border border-white/10 relative">
-                                  <img src={playerApplicationData.screenshots[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                  <button 
-                                    onClick={() => setPlayerApplicationData(prev => ({ ...prev, screenshots: [] }))}
-                                    className="absolute top-4 right-4 p-2 bg-black/50 rounded-xl text-white backdrop-blur-md"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <button 
-                                  onClick={() => setPlayerApplicationData(prev => ({ ...prev, screenshots: ['https://picsum.photos/seed/' + Math.random() + '/1280/720'] }))}
-                                  className="w-full aspect-video rounded-2xl bg-white/5 border border-dashed border-white/20 flex flex-col items-center justify-center gap-3 text-gray-500 hover:bg-white/10 transition-all"
-                                >
-                                  <Camera className="w-8 h-8" />
-                                  <span className="text-[10px] font-black uppercase tracking-widest">{t('apply.addScreenshot')}</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
+                          <div className="space-y-3"><p className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">{t('apply.fieldScreenshot')}</p><div aria-disabled="true" className="w-full aspect-video max-h-48 rounded-2xl bg-white/5 border border-dashed border-white/20 flex flex-col items-center justify-center gap-3 text-gray-500"><Camera className="w-8 h-8" /><span className="text-xs">{unavailable}</span></div></div>
                         </div>
                       </div>
                     )}
@@ -435,150 +444,12 @@ const {
                         <div className="space-y-8">
                           <div className="space-y-4">
                             <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">{t('apply.voiceRecording')}</p>
-                            <div className="p-8 bg-white/5 border border-white/10 rounded-[32px] flex flex-col items-center gap-6">
-                              <div className="w-20 h-20 rounded-full bg-purple-600/20 flex items-center justify-center relative">
-                                {isRecording && (
-                                  <div className="absolute inset-0 rounded-full bg-purple-600 animate-ping opacity-20" />
-                                )}
-                                <Mic2 className={`w-8 h-8 ${isRecording ? 'text-white' : 'text-purple-400'}`} />
-                              </div>
-                              
-                              <div className="text-center space-y-1">
-                                {isRecording ? (
-                                  <div className="flex flex-col items-center gap-2">
-                                    <span className="text-2xl font-black text-white tabular-nums">
-                                      0:{recordingTime.toString().padStart(2, '0')}
-                                    </span>
-                                    <div className="flex gap-2">
-                                      {[1, 2, 3, 4, 5].map(i => (
-                                        <motion.div
-                                          key={i}
-                                          animate={{ height: [4, 12, 4] }}
-                                          transition={{ repeat: Infinity, duration: 0.5, delay: i * 0.1 }}
-                                          className="w-1 bg-purple-500 rounded-full"
-                                        />
-                                      ))}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <p className="text-sm font-bold text-white">
-                                      {playerApplicationData.voiceUrl ? t('apply.voiceRecorded') : t('apply.voiceRecordPrompt')}
-                                    </p>
-                                    <p className="text-[10px] text-gray-500">{t('apply.voiceMaxSeconds')}</p>
-                                  </>
-                                )}
-                              </div>
-
-                              <div className="flex flex-col w-full gap-3">
-                                {!isRecording && !playerApplicationData.voiceUrl && (
-                                  <button 
-                                    onClick={() => {
-                                      setIsRecording(true);
-                                      setRecordingTime(0);
-                                      const timer = setInterval(() => {
-                                        setRecordingTime(prev => {
-                                          if (prev >= 30) {
-                                            clearInterval(timer);
-                                            setIsRecording(false);
-                                            setPlayerApplicationData(p => ({ ...p, voiceUrl: 'https://example.com/voice.mp3' }));
-                                            return 30;
-                                          }
-                                          return prev + 1;
-                                        });
-                                      }, 1000);
-                                      (window as any).recordingTimer = timer;
-                                    }}
-                                    className="w-full py-4 bg-purple-600 rounded-2xl font-black text-white text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all"
-                                  >
-                                    {t('apply.startRecording')}
-                                  </button>
-                                )}
-
-                                {isRecording && (
-                                  <div className="flex gap-3">
-                                    <button 
-                                      onClick={() => {
-                                        clearInterval((window as any).recordingTimer);
-                                        setIsRecording(false);
-                                        setRecordingTime(0);
-                                      }}
-                                      className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-gray-400 text-[10px] uppercase tracking-widest active:scale-95 transition-all"
-                                    >
-                                      {t('me.cancel')}
-                                    </button>
-                                    <button 
-                                      onClick={() => {
-                                        clearInterval((window as any).recordingTimer);
-                                        setIsRecording(false);
-                                        setPlayerApplicationData(p => ({ ...p, voiceUrl: 'https://example.com/voice.mp3' }));
-                                      }}
-                                      className="flex-1 py-4 bg-green-600 rounded-2xl font-black text-white text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
-                                    >
-                                      {t('apply.done')}
-                                    </button>
-                                  </div>
-                                )}
-
-                                {!isRecording && playerApplicationData.voiceUrl && (
-                                  <div className="flex gap-3">
-                                    <button 
-                                      onClick={() => {
-                                        setPlayerApplicationData(p => ({ ...p, voiceUrl: '' }));
-                                        setIsRecording(true);
-                                        setRecordingTime(0);
-                                        const timer = setInterval(() => {
-                                          setRecordingTime(prev => {
-                                            if (prev >= 30) {
-                                              clearInterval(timer);
-                                              setIsRecording(false);
-                                              setPlayerApplicationData(p => ({ ...p, voiceUrl: 'https://example.com/voice.mp3' }));
-                                              return 30;
-                                            }
-                                            return prev + 1;
-                                          });
-                                        }, 1000);
-                                        (window as any).recordingTimer = timer;
-                                      }}
-                                      className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-purple-400 text-[10px] uppercase tracking-widest active:scale-95 transition-all"
-                                    >
-                                      {t('apply.reRecord')}
-                                    </button>
-                                    <div className="flex-1 py-4 bg-green-600/20 border border-green-500/30 rounded-2xl flex items-center justify-center gap-2">
-                                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                      <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">{t('apply.saved')}</span>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                            <div aria-disabled="true" className="p-8 bg-white/5 border border-white/10 rounded-[32px] flex flex-col items-center gap-4 text-gray-500"><Mic2 className="w-8 h-8" /><span>{unavailable}</span></div>
                           </div>
 
                           <div className="space-y-4">
                             <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">{t('apply.coverImage')}</p>
-                            <button 
-                              onClick={() => setPlayerApplicationData(prev => ({ ...prev, coverUrl: 'https://picsum.photos/seed/cover/800/1200' }))}
-                              className="w-full aspect-[3/4] bg-white/5 border border-dashed border-white/20 rounded-[32px] overflow-hidden flex flex-col items-center justify-center gap-3 group relative"
-                            >
-                              {playerApplicationData.coverUrl ? (
-                                <>
-                                  <img src={playerApplicationData.coverUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Camera className="w-8 h-8 text-white" />
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
-                                    <Camera className="w-6 h-6 text-gray-500" />
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="text-xs font-bold text-white">{t('apply.uploadCover')}</p>
-                                    <p className="text-[10px] text-gray-500">{t('apply.coverPortraitHint')}</p>
-                                  </div>
-                                </>
-                              )}
-                            </button>
+                            <div aria-disabled="true" className="w-full aspect-[3/4] max-h-64 bg-white/5 border border-dashed border-white/20 rounded-[32px] flex flex-col items-center justify-center gap-3 text-gray-500"><Camera className="w-8 h-8" /><span>{unavailable}</span></div>
                           </div>
 
                           <div className="space-y-3">
@@ -640,152 +511,18 @@ const {
                             </div>
                           </div>
 
-                          <div className="space-y-4 pt-4 border-t border-white/5">
-                            <div className="flex items-center justify-between px-2">
-                              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Promotion (Optional)</p>
-                              <button 
-                                onClick={() => setPlayerApplicationData(prev => ({ 
-                                  ...prev, 
-                                  promotion: { ...prev.promotion, type: prev.promotion.type === 'NONE' ? 'DISCOUNT' : 'NONE' } 
-                                }))}
-                                className={`text-[10px] font-black uppercase tracking-widest transition-all ${
-                                  playerApplicationData.promotion.type !== 'NONE' ? 'text-purple-400' : 'text-gray-600'
-                                }`}
-                              >
-                                {playerApplicationData.promotion.type !== 'NONE' ? 'Remove' : 'Add'}
-                              </button>
-                            </div>
-
-                            {playerApplicationData.promotion.type !== 'NONE' && (
-                              <motion.div 
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="space-y-6 p-6 bg-white/5 border border-white/10 rounded-[32px]"
-                              >
-                                <div className="space-y-3">
-                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Promotion Type</p>
-                                  <div className="grid grid-cols-1 gap-2">
-                                    {[
-                                      { id: 'FIRST_ORDER_DISCOUNT', label: 'First Order Discount' },
-                                      { id: 'DISCOUNT', label: 'General Discount' },
-                                      { id: 'BUY_X_GET_Y', label: 'Buy X Get Y' }
-                                    ].map((type) => (
-                                      <button
-                                        key={type.id}
-                                        onClick={() => setPlayerApplicationData(prev => ({ 
-                                          ...prev, 
-                                          promotion: { ...prev.promotion, type: type.id as any } 
-                                        }))}
-                                        className={`p-4 rounded-2xl text-left border transition-all ${
-                                          playerApplicationData.promotion.type === type.id ? 'bg-purple-600/20 border-purple-500/50 text-white' : 'bg-white/5 border-white/10 text-gray-500'
-                                        }`}
-                                      >
-                                        <p className="text-xs font-bold">{type.label}</p>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                    {playerApplicationData.promotion.type === 'BUY_X_GET_Y' ? 'Promotion Details' : 'Discount Value (%)'}
-                                  </p>
-                                  {playerApplicationData.promotion.type === 'BUY_X_GET_Y' ? (
-                                    <div className="flex items-center gap-4">
-                                      <div className="flex-1 space-y-1">
-                                        <p className="text-[8px] font-black text-gray-500 uppercase px-2">Buy X</p>
-                                        <input 
-                                          type="number"
-                                          placeholder="X"
-                                          value={playerApplicationData.promotion.buyX || ''}
-                                          onChange={(e) => setPlayerApplicationData(prev => ({ 
-                                            ...prev, 
-                                            promotion: { ...prev.promotion, buyX: Number(e.target.value) } 
-                                          }))}
-                                          className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white font-bold focus:border-purple-500/50 outline-none transition-all"
-                                        />
-                                      </div>
-                                      <div className="pt-6 text-gray-500 font-black">GET</div>
-                                      <div className="flex-1 space-y-1">
-                                        <p className="text-[8px] font-black text-gray-500 uppercase px-2">Get Y</p>
-                                        <input 
-                                          type="number"
-                                          placeholder="Y"
-                                          value={playerApplicationData.promotion.getY || ''}
-                                          onChange={(e) => setPlayerApplicationData(prev => ({ 
-                                            ...prev, 
-                                            promotion: { ...prev.promotion, getY: Number(e.target.value) } 
-                                          }))}
-                                          className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white font-bold focus:border-purple-500/50 outline-none transition-all"
-                                        />
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <input 
-                                      type="number"
-                                      placeholder="0"
-                                      value={playerApplicationData.promotion.value || ''}
-                                      onChange={(e) => setPlayerApplicationData(prev => ({ 
-                                        ...prev, 
-                                        promotion: { ...prev.promotion, value: Number(e.target.value) } 
-                                      }))}
-                                      className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-white font-bold placeholder:text-gray-600 focus:border-purple-500/50 outline-none transition-all"
-                                    />
-                                  )}
-                                </div>
-
-                                <div className="space-y-4">
-                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Promotion Limit</p>
-                                  <div className="flex gap-2">
-                                    {[
-                                      { id: 'NONE', label: t('apply.limitNone') },
-                                      { id: 'TIME', label: t('apply.limitTime') },
-                                      { id: 'QUANTITY', label: t('apply.limitQty') }
-                                    ].map((limit) => (
-                                      <button
-                                        key={limit.id}
-                                        onClick={() => setPlayerApplicationData(prev => ({ 
-                                          ...prev, 
-                                          promotion: { ...prev.promotion, limitType: limit.id as any } 
-                                        }))}
-                                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
-                                          playerApplicationData.promotion.limitType === limit.id ? 'bg-purple-600 border-purple-500 text-white' : 'bg-white/5 border-white/10 text-gray-500'
-                                        }`}
-                                      >
-                                        {limit.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  {playerApplicationData.promotion.limitType !== 'NONE' && (
-                                    <input 
-                                      type="number"
-                                      placeholder={
-                                        playerApplicationData.promotion.limitType === 'TIME'
-                                          ? t('apply.promoPlaceholderDays')
-                                          : t('apply.promoPlaceholderQty')
-                                      }
-                                      value={playerApplicationData.promotion.limitValue || ''}
-                                      onChange={(e) => setPlayerApplicationData(prev => ({ 
-                                        ...prev, 
-                                        promotion: { ...prev.promotion, limitValue: Number(e.target.value) } 
-                                      }))}
-                                      className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-white font-bold placeholder:text-gray-600 focus:border-purple-500/50 outline-none transition-all"
-                                    />
-                                  )}
-                                </div>
-                              </motion.div>
-                            )}
-                          </div>
+                          <div className="space-y-4 pt-4 border-t border-white/5 text-gray-500"><p className="text-xs font-bold">{locale === 'ar' ? 'العروض الترويجية' : 'Promotions'}: {unavailable}</p></div>
                         </div>
                       </div>
                     )}
-                  </div>
+                  </fieldset>
                 )}
               </div>
 
               {/* Fixed Footer */}
-              {playerApplicationStatus !== 'PENDING' && (
+              {playerApplicationStatus !== 'PENDING' && playerApplicationStatus !== 'APPROVED' && (playerApplicationStatus !== 'REJECTED' || companionApplication.editing) && !companionApplication.loading && (
                 <div className="fixed bottom-0 left-0 right-0 p-6 bg-[#0f071a]/80 backdrop-blur-xl border-t border-white/10 z-50">
+                  {companionApplication.attemptPending && <p className="mb-3 text-xs text-amber-300">{locale === 'ar' ? 'حالة الإرسال غير مؤكدة. أعد المحاولة بنفس البيانات.' : 'Submission is unconfirmed. Retry with the same details.'}</p>}
                   {playerApplicationStep < 4 ? (
                     <button 
                       onClick={() => setPlayerApplicationStep(prev => prev + 1)}
@@ -798,11 +535,10 @@ const {
                           if (game?.hasServer && !playerApplicationData.server) return true;
                           if (game?.hasPlatform && !playerApplicationData.platform) return true;
                           if (!playerApplicationData.style || !playerApplicationData.intro) return true;
-                          if (playerApplicationData.screenshots.length === 0) return true;
                           return false;
                         }
                         if (playerApplicationStep === 3) {
-                          return !playerApplicationData.coverUrl || !playerApplicationData.coverIntro || !playerApplicationData.voiceUrl;
+                          return false;
                         }
                         return false;
                       })()}
@@ -813,24 +549,15 @@ const {
                   ) : (
                     <button 
                       onClick={() => {
-                        setPlayerApplicationStatus('PENDING');
-                        notify(t('apply.submittedAlert'));
+                        const gameName = GAMES.find(game => game.id === playerApplicationData.gameId)?.name;
+                        if (gameName) void companionApplication.submit(gameName);
                       }}
                       disabled={(() => {
-                        if (!playerApplicationData.serviceName || !playerApplicationData.price) return true;
-                        if (playerApplicationData.promotion.type !== 'NONE') {
-                          if (playerApplicationData.promotion.type === 'BUY_X_GET_Y') {
-                            if (!playerApplicationData.promotion.buyX || !playerApplicationData.promotion.getY) return true;
-                          } else {
-                            if (!playerApplicationData.promotion.value) return true;
-                          }
-                          if (playerApplicationData.promotion.limitType !== 'NONE' && !playerApplicationData.promotion.limitValue) return true;
-                        }
-                        return false;
+                        return companionApplication.busy || !playerApplicationData.serviceName.trim() || !isValidApplicationPrice(playerApplicationData.price);
                       })()}
                       className="w-full py-5 bg-purple-600 rounded-2xl font-black text-white shadow-[0_0_40px_rgba(168,85,247,0.4)] active:scale-95 disabled:opacity-50 disabled:active:scale-100 transition-all uppercase tracking-widest text-xs"
                     >
-                      {t('apply.submitApplication')}
+                      {companionApplication.busy ? (locale === 'ar' ? 'جار الإرسال...' : 'Submitting...') : t('apply.submitApplication')}
                     </button>
                   )}
                 </div>

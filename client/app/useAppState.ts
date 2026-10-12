@@ -13,6 +13,8 @@ import { useUiStore } from '../stores/uiStore';
 import { resolveOrderContext } from '../lib/resolveOrderContext';
 import { useSocial } from '../hooks/useSocial';
 import { useOrders } from '../hooks/useOrders';
+import { useCompanionApplication } from '../hooks/useCompanionApplication';
+import { refreshApplicationOwnerSession } from '../components/application/approvedSession';
 import { usePublicCompanionProfile } from '../hooks/usePublicCompanionProfile';
 import { blocksCompanionCheckout, toIMOrder } from '../services/orderPresentation';
 import { AUTH_SESSION_EVENT, restoreSession as restoreAuthSession, storeSession, endSession, refreshSession } from '../features/auth/session';
@@ -389,37 +391,24 @@ export function useAppState() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawAddress, setWithdrawAddress] = useState('');
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
-  const [userRole, setUserRole] = useState<'USER' | 'PLAYER'>('USER');
-  useEffect(() => {
-    setUserRole(authUser?.role === 'PLAYER' ? 'PLAYER' : 'USER');
-  }, [authUser?.role]);
+  const userRole = authUser?.role === 'PLAYER' ? 'PLAYER' : 'USER';
+  const setUserRole = (_role: 'USER' | 'PLAYER') => {};
   const [isPlayerOnline, setIsPlayerOnline] = useState(true);
-  const [playerApplicationStatus, setPlayerApplicationStatus] = useState<'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED'>('NONE');
+  const companionApplication = useCompanionApplication(authUser?.id || null, authToken, currentView === 'ME' || currentView === 'APPLY_PLAYER');
+  const playerApplicationStatus = companionApplication.application?.status || 'NONE';
+  const setPlayerApplicationStatus = (_status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED') => {};
   const [playerApplicationStep, setPlayerApplicationStep] = useState(1);
-  const [playerApplicationData, setPlayerApplicationData] = useState({
-    gameId: '',
-    rank: '',
-    mainPosition: '',
-    server: '',
-    platform: '',
-    style: '',
-    intro: '',
-    screenshots: [] as string[],
-    voiceUrl: '',
-    coverUrl: '',
-    coverIntro: '',
-    serviceName: '',
-    price: 0,
-    unit: 'Game',
-    promotion: {
-      type: 'NONE' as 'NONE' | 'FIRST_ORDER_DISCOUNT' | 'DISCOUNT' | 'BUY_X_GET_Y',
-      value: 0,
-      buyX: 0,
-      getY: 0,
-      limitType: 'NONE' as 'NONE' | 'TIME' | 'QUANTITY',
-      limitValue: 0
-    }
-  });
+  const playerApplicationData = companionApplication.draft;
+  const setPlayerApplicationData = companionApplication.setDraft;
+  useEffect(() => {
+    const status = companionApplication.application?.status;
+    if (!status || !authToken || !authUser?.id || authUser.role === 'ADMIN'
+      || (currentView !== 'ME' && currentView !== 'APPLY_PLAYER')) return;
+    const expectedRole = status === 'APPROVED' ? 'PLAYER' : 'USER';
+    if (authUser.role === expectedRole) return;
+    const guard = companionApplication.sessionGuard(authUser.id, authToken);
+    void refreshApplicationOwnerSession(authToken, authUser.id, guard, expectedRole).catch(() => {});
+  }, [companionApplication.application?.status, companionApplication.sessionGuard, authToken, authUser?.id, authUser?.role, currentView]);
   const [applyGameSearchQuery, setApplyGameSearchQuery] = useState('');
   const [showApplySelectionModal, setShowApplySelectionModal] = useState<{
     show: boolean;
@@ -502,6 +491,15 @@ export function useAppState() {
   const [walletTab, setWalletTab] = useState<'ALL' | 'RECHARGE' | 'ORDER'>('ALL');
   const [walletDate, setWalletDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [selectedApplyGameCategory, setSelectedApplyGameCategory] = useState<string>('GAMES');
+  useEffect(() => {
+    setPlayerApplicationStep(1);
+    setApplyGameSearchQuery('');
+    setSelectedApplyGameCategory('GAMES');
+    setShowApplySelectionModal({ show: false, type: 'NONE', options: [], title: '' });
+    setSelectedGame(null);
+    setSelectedServiceCategory(null);
+    setApplicationDetails({ rank: '', platform: '', style: '', price: '', discount: '' });
+  }, [authUser?.id]);
   const [epalSortBy, setEpalSortBy] = useState<'DEFAULT' | 'ORDERS' | 'SCORE'>('DEFAULT');
   const [epalFilters, setEpalFilters] = useState({
     status: 'ALL' as 'ALL' | 'ONLINE',
@@ -860,7 +858,7 @@ export function useAppState() {
     selectedGiftId, setSelectedGiftId, giftQuantity, setGiftQuantity, showQuantitySelector, setShowQuantitySelector,
     userCoins, setUserCoins, userDiamonds, setUserDiamonds, withdrawAmount, setWithdrawAmount,
     withdrawAddress, setWithdrawAddress, withdrawSubmitting, setWithdrawSubmitting,
-    userRole, setUserRole, isPlayerOnline, setIsPlayerOnline, playerApplicationStatus, setPlayerApplicationStatus,
+    userRole, setUserRole, isPlayerOnline, setIsPlayerOnline, playerApplicationStatus, setPlayerApplicationStatus, companionApplication,
     playerApplicationStep, setPlayerApplicationStep, playerApplicationData, setPlayerApplicationData,
     applyGameSearchQuery, setApplyGameSearchQuery, showApplySelectionModal, setShowApplySelectionModal,
     showGameSelectorModal, setShowGameSelectorModal, focusCommentInput, setFocusCommentInput, commentInputRef,

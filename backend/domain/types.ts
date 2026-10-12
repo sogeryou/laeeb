@@ -5,6 +5,7 @@ import type { LevelEvent, LevelSettlement } from '../player-center/events.js';
 import type { StoredMessage, StoredPost } from '../routes/social.js';
 import type { StoredComment, LevelReview } from '../routes/socialContent.js';
 import type { CouponGrant, CouponTemplate, DeviceBan, ExposureLog, SupportTicket } from '../routes/ops.js';
+import type { CompanionApplicationDetails } from '../../shared/companionApplications.js';
 
 export type UserRole = 'USER' | 'PLAYER' | 'ADMIN';
 export type AccountStatus = 'ACTIVE' | 'FROZEN' | 'RISK_HOLD';
@@ -104,6 +105,15 @@ export type PersistedState = {
     updatedAt: number;
     services?: Array<{ id: string; name: string; unitPrice: number; unit: string }>;
     ranking?: OfficialLevel;
+    application?: {
+      details: CompanionApplicationDetails;
+      submittedAt: number;
+      requestId?: string;
+      requestFingerprint?: string;
+      rejectionReason?: string;
+      reviewedAt?: number;
+      reviewedBy?: string;
+    };
   }>;
   orders: PersistedOrder[];
   reviews: BusinessReview[];

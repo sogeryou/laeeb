@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../admin";
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {

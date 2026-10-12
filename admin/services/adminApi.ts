@@ -1,4 +1,5 @@
 import { apiUrl, readJsonResponse } from '@shared/apiClient';
+import type { CompanionApplication } from '@shared/companionApplications';
 
 type AuthUser = {
   id: string;
@@ -72,8 +73,8 @@ export const adminApi = {
   listCompanions(token: string, params?: ListQuery) {
     return request<PagedResult<any>>(`/api/admin/companions${toQuery(params)}`, 'GET', token);
   },
-  reviewCompanion(token: string, companionId: string, action: 'APPROVE' | 'REJECT') {
-    return request(`/api/admin/companions/${companionId}/review`, 'POST', token, { action });
+  reviewCompanion(token: string, companionId: string, action: 'APPROVE' | 'REJECT', options: { reason?: string; expectedUpdatedAt?: number } = {}) {
+    return request<CompanionApplication>(`/api/admin/companions/${encodeURIComponent(companionId)}/review`, 'POST', token, { action, ...options });
   },
   listOrders(token: string, params?: ListQuery) {
     return request<PagedResult<any>>(`/api/admin/orders${toQuery(params)}`, 'GET', token);

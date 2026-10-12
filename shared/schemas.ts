@@ -29,10 +29,24 @@ export const EmailCodeLoginBodySchema = z.object({
 });
 
 export const CompanionApplySchema = z.object({
-  gameName: z.string().min(1).max(80),
-  intro: z.string().min(1).max(2000),
-  hourlyRate: z.number().positive().max(500),
-});
+  gameName: z.string().trim().min(1).max(80),
+  intro: z.string().trim().min(1).max(2000),
+  hourlyRate: z.number().finite().positive().max(500).refine(value => Number.isSafeInteger(Math.round(value * 100)) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-7, 'Price must have at most two decimal places'),
+  requestId: z.string().trim().min(1).max(128).optional(),
+  details: z.object({
+    gameId: z.string().trim().min(1).max(100).optional(),
+    rank: z.string().trim().min(1).max(100).optional(),
+    mainPosition: z.string().trim().min(1).max(100).optional(),
+    server: z.string().trim().min(1).max(100).optional(),
+    platform: z.string().trim().min(1).max(100).optional(),
+    style: z.string().trim().min(1).max(200).optional(),
+    coverIntro: z.string().trim().min(1).max(2000).optional(),
+    serviceName: z.string().trim().min(1).max(100).optional(),
+    unit: z.enum(['hr', 'match']).optional(),
+  }).strict().optional(),
+}).strict();
+
+export const CompApplySchema = CompanionApplySchema;
 
 export const OrderQuoteSchema = z.object({
   companionId: z.string().min(1).max(128),

@@ -1,6 +1,7 @@
 import type { Coupon, EPal, RechargeOrder, RechargePackage, Wallet as WalletType, WalletTransaction } from '@shared/types';
 import type { ManagedCompanionProfile, UpdateCompanionProfile } from '@shared/companionManagement';
 import type { BusinessOrder, BusinessReview, CreateOrderInput, OrderAction, OrderQuote } from '@shared/orders';
+import type { CompanionApplication, CompanionApplicationResponse, SubmitCompanionApplication } from '@shared/companionApplications';
 export type { BusinessOrder, BusinessReview } from '@shared/orders';
 
 export type { AuthUser } from '@shared/auth';
@@ -92,6 +93,12 @@ export const businessApi = {
   },
   applyCompanion(token: string, gameName: string, intro: string, hourlyRate: number) {
     return request<CompanionProfile>('/api/companions/apply', 'POST', { gameName, intro, hourlyRate }, token);
+  },
+  getCompanionApplication(token: string) {
+    return request<CompanionApplicationResponse>('/api/companions/me/application', 'GET', undefined, token);
+  },
+  submitCompanionApplication(token: string, input: SubmitCompanionApplication) {
+    return request<CompanionApplication>('/api/companions/apply', 'POST', input, token);
   },
   getManagedCompanionProfile(token: string) {
     return request<ManagedCompanionProfile>('/api/companions/me/profile', 'GET', undefined, token);

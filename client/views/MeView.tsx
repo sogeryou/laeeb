@@ -84,6 +84,7 @@ import { SettingsSubPage } from '../components/SettingsSubPage';
 import { formatChatMessageTime } from '../lib/chatTime';
 
 import { useApp } from '../app/AppContext';
+import { canEnterPlayerCenter } from '../components/application/applicationModel';
 
 export function MeView() {
 const {
@@ -260,7 +261,7 @@ const {
                       <ChevronRight className="w-5 h-5 text-gray-600 group-hover:translate-x-1 transition-transform" />
                     </button>
 
-                    {userRole === 'PLAYER' ? (
+                    {canEnterPlayerCenter(userRole, playerApplicationStatus) ? (
                       <button
                         onClick={() => navigateTo('PLAYER_CENTER')}
                         className="w-full flex items-center justify-between p-5 bg-gradient-to-r from-purple-600/20 to-transparent rounded-[24px] border border-purple-500/30 hover:bg-purple-600/20 active:scale-[0.99] transition-all group"
@@ -285,8 +286,8 @@ const {
                             <Zap className="w-6 h-6 fill-current" />
                           </div>
                           <div className="text-left">
-                            <p className="font-bold text-white">Become a Player</p>
-                            <p className="text-[10px] text-purple-400 font-black uppercase tracking-widest">Earn Diamonds Now</p>
+                            <p className="font-bold text-white">{playerApplicationStatus === 'NONE' ? 'Become a Player' : playerApplicationStatus === 'PENDING' ? (locale === 'ar' ? 'الطلب قيد المراجعة' : 'Application pending') : playerApplicationStatus === 'REJECTED' ? (locale === 'ar' ? 'تم رفض الطلب' : 'Application rejected') : (locale === 'ar' ? 'تمت الموافقة على الطلب' : 'Application approved')}</p>
+                            {playerApplicationStatus === 'NONE' && <p className="text-[10px] text-purple-400 font-black uppercase tracking-widest">Earn Diamonds Now</p>}
                           </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-purple-400 group-hover:translate-x-1 transition-transform" />

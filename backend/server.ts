@@ -60,6 +60,7 @@ import { registerSocialRoutes } from './routes/social.js';
 import { registerSocialContentRoutes } from './routes/socialContent.js';
 import { registerFinanceRoutes } from './routes/finance.js';
 import { registerUploadRoutes } from './routes/uploads.js';
+import { registerCompanionReviewRoutes } from './companions/applications.js';
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -635,17 +636,7 @@ async function startServer() {
     res.json(cursorPaginate(sorted, req.query.page, req.query.pageSize, req.query.cursor));
   });
 
-  app.post('/api/admin/companions/:id/review', authMiddleware, requireAdmin('COMPANION_REVIEW'), (req, res) => {
-    const companion = companions.find(item => item.id === req.params.id);
-    if (!companion) return sendError(res, 404, 'COMPANION_NOT_FOUND', 'Companion not found');
-    const action = req.body?.action as 'APPROVE' | 'REJECT';
-    if (!action) return sendError(res, 400, 'ADMIN_ACTION_REQUIRED', 'action required');
-    companion.status = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
-    companion.updatedAt = Date.now();
-    appendAuditLog((req as any).authUserId, `COMPANION_${action}`, 'companion', companion.id, { status: companion.status });
-    persistState();
-    res.json(companion);
-  });
+  registerCompanionReviewRoutes(app, appContext);
 
   app.patch('/api/admin/companions/:id/operator', authMiddleware, requireAdmin('COMPANION_REVIEW'), zValidate(AdminOperatorPatchSchema), (req, res) => {
     const companion = companions.find(item => item.id === req.params.id);

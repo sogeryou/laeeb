@@ -1,26 +1,27 @@
 import type express from 'express';
 import { randomUUID } from 'node:crypto';
-import { CompanionApplySchema, CreateOrderSchema, CreateReviewSchema, OrderQuoteSchema } from '../../shared/schemas.js';
+import { CreateOrderSchema, CreateReviewSchema, OrderQuoteSchema } from '../../shared/schemas.js';
 import type { BusinessReview, CreateOrderInput } from '../../shared/orders.js';
 import type { Coupon } from '../../shared/types.js';
-import type { OrderEntity } from '../domain/types.js';
+import type { CompanionEntity, OrderEntity } from '../domain/types.js';
 import { rankCompanions } from '../algo/m6Exposure.js';
 import type { AppContext } from '../app/context.js';
 import { zValidate } from '../middleware/validate.js';
-import { assertRateInLevelBand } from '../policy/index.js';
-import { levelFromHourlyRate } from '../policy/leveling.js';
-import { initialLevel, readOfficialLevel } from '../player-center/officialLevel.js';
+import { readOfficialLevel } from '../player-center/officialLevel.js';
 import { recordLevelEvent } from '../player-center/events.js';
 import { freezeOrder, actOnOrder, expireOrders, OrderFlowError, type OrderAction } from '../orders/escrow.js';
 import { orderRequestPayload, quoteOrder, toMinor } from '../orders/pricing.js';
 import { toBusinessOrder } from '../orders/presentation.js';
 import { OrderSaveError, persistOrderMutation } from '../orders/persistence.js';
 import { registerCompanionProfileRoutes } from '../companions/profile.js';
+import { registerCompanionApplicationRoutes } from '../companions/applications.js';
 
 const MODERATION_BLOCKLIST = ['诈骗', 'fraud', 'scam', '色情', 'porn'];
+const publicCompanion = ({ application: _application, ...companion }: CompanionEntity) => companion;
 
 export function registerBusinessRoutes(app: express.Application, ctx: AppContext) {
   registerCompanionProfileRoutes(app, ctx);
+  registerCompanionApplicationRoutes(app, ctx);
   const {
     authMiddleware,
     companions,
@@ -72,53 +73,24 @@ export function registerBusinessRoutes(app: express.Application, ctx: AppContext
     }
   });
 
-  app.post('/api/companions/apply', authMiddleware, zValidate(CompanionApplySchema), (req, res) => {
-    const userId = (req as any).authUserId as string;
-    const { gameName, intro, hourlyRate } = (req as express.Request & { validatedBody: { gameName: string; intro: string; hourlyRate: number } }).validatedBody;
-    const level = levelFromHourlyRate(hourlyRate);
-    const band = assertRateInLevelBand(level, hourlyRate);
-    if (!band.ok) {
-      return sendError(res, 422, 'PRICE_OUT_OF_LEVEL_BAND', 'hourlyRate out of level band', { band: band.band, level });
-    }
-    const existing = companions.find(c => c.userId === userId);
-    if (existing) {
-      return sendError(res, 409, 'COMPANION_ALREADY_EXISTS', 'Use the profile editor to update an existing companion');
-    }
-    const companion = {
-      id: `cp_${Math.random().toString(36).slice(2, 9)}`,
-      userId,
-      gameName,
-      intro,
-      hourlyRate,
-      status: 'APPROVED' as const,
-      availability: 'ONLINE' as const,
-      ranking: initialLevel(),
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    companions.push(companion);
-    const user = users.find(u => u.id === userId);
-    if (user) user.role = 'PLAYER';
-    persistState();
-    res.status(201).json(companion);
-  });
-
   app.patch('/api/companions/:id/availability', authMiddleware, (req, res) => {
     const companion = companions.find(c => c.id === req.params.id);
     if (!companion) return sendError(res, 404, 'COMPANION_NOT_FOUND', 'Companion not found');
     if (companion.userId !== (req as any).authUserId) return sendError(res, 403, 'COMPANION_FORBIDDEN', 'Forbidden');
+    if (companion.status !== 'APPROVED') return sendError(res, 403, 'COMPANION_APPROVAL_REQUIRED', 'Approval required before changing availability');
     const nextAvailability = req.body?.availability as 'ONLINE' | 'OFFLINE' | 'BUSY';
     if (!nextAvailability) return sendError(res, 400, 'COMPANION_AVAILABILITY_REQUIRED', 'availability required');
+    if (!['ONLINE', 'OFFLINE', 'BUSY'].includes(nextAvailability)) return sendError(res, 400, 'COMPANION_AVAILABILITY_INVALID', 'Invalid availability');
     companion.availability = nextAvailability;
     companion.updatedAt = Date.now();
     persistState();
-    res.json(companion);
+    res.json(publicCompanion(companion));
   });
 
   app.get('/api/companions', (req, res) => {
     const onlyAvailable = req.query.available === 'true';
     const list = companions.filter(c => c.status === 'APPROVED' && (!onlyAvailable || c.availability === 'ONLINE'));
-    res.json(list);
+    res.json(list.map(publicCompanion));
   });
 
   app.get('/api/companions/rankings', (req, res) => {

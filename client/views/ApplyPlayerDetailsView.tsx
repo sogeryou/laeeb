@@ -82,6 +82,7 @@ import { SettingsSubPage } from '../components/SettingsSubPage';
 import { formatChatMessageTime } from '../lib/chatTime';
 
 import { useApp } from '../app/AppContext';
+import { legacyDetailsToDraft } from '../components/application/applicationModel';
 
 export function ApplyPlayerDetailsView() {
 const {
@@ -209,25 +210,20 @@ const {
                   </div>
                   <div className="space-y-2">
                     <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] px-2">{t('apply.detailsDiscount')}</p>
-                    <input 
-                      type="number" 
-                      value={applicationDetails.discount}
-                      onChange={(e) => setApplicationDetails(prev => ({ ...prev, discount: e.target.value }))}
-                      placeholder="e.g. 10"
-                      className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-white font-bold placeholder:text-gray-600 focus:border-purple-500/50 outline-none transition-all"
-                    />
+                    <div aria-disabled="true" className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-gray-500">{locale === 'ar' ? 'غير متاح حالياً' : 'Currently unavailable'}</div>
                   </div>
                 </div>
               </div>
 
               <button 
                 onClick={() => {
-                  setPlayerApplicationStatus('PENDING');
+                  setPlayerApplicationData(previous => legacyDetailsToDraft(previous, selectedGame?.id, selectedServiceCategory, applicationDetails));
+                  setPlayerApplicationStep(selectedGame ? 2 : 1);
                   navigateTo('APPLY_PLAYER');
                 }}
                 className="w-full py-5 bg-purple-600 rounded-2xl font-black text-white shadow-[0_0_40px_rgba(168,85,247,0.4)] active:scale-95 transition-all uppercase tracking-widest text-xs"
               >
-                {t('apply.detailsSubmit')}
+                {t('apply.nextStep')}
               </button>
             </motion.div>
   );

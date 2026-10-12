@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   LayoutDashboard,
   Gamepad2,
@@ -17,6 +17,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { adminApi } from './services/adminApi';
+import { CompanionReviewActions, type CompanionReviewInput } from './components/CompanionReviewActions';
 import { SocialModerationPanel } from './SocialModerationPanel';
 import { useI18n } from '../client/i18n/I18nProvider';
 import type { MessageKey } from '../client/i18n/messages';
@@ -279,6 +280,8 @@ function renderRecordTitle(module: SchemaModule, record: any): string {
 export default function AdminWorkbench({ token, adminEmail, onLogout }: AdminWorkbenchProps) {
   void ADMIN_I18N_PREP_NOTE;
   const { t } = useI18n();
+  const reviewScope = useRef(token);
+  reviewScope.current = token;
   const [status, setStatus] = useState(t('admin.status.ready'));
   const [dashboard, setDashboard] = useState<any>(null);
   const [companions, setCompanions] = useState<any[]>([]);
@@ -470,6 +473,19 @@ export default function AdminWorkbench({ token, adminEmail, onLogout }: AdminWor
       setStatus((error as Error).message || t('admin.status.operationFailed'));
     }
   };
+  const reviewCompanionApplication = async (record: any, input: CompanionReviewInput) => {
+    const access = token;
+    try {
+      const saved = await adminApi.reviewCompanion(access, record.id, input.action, { reason: input.reason, expectedUpdatedAt: input.expectedUpdatedAt });
+      if (reviewScope.current !== access) return;
+      setCompanions(previous => previous.map(item => item.id === saved.id ? { ...item, ...saved } : item)
+        .filter(item => !moduleFilters.companions.status || item.status === moduleFilters.companions.status));
+      setStatus(t('admin.status.runCompleted', { label: input.action === 'APPROVE' ? '\u966a\u73a9\u901a\u8fc7' : '\u966a\u73a9\u9a73\u56de' }));
+    } catch (error) {
+      if (reviewScope.current === access) setStatus((error as Error).message || t('admin.status.operationFailed'));
+      throw error;
+    }
+  };
   const handleLogout = async () => {
     setDashboard(null);
     setCompanions([]);
@@ -575,18 +591,7 @@ export default function AdminWorkbench({ token, adminEmail, onLogout }: AdminWor
               ))}
             </div>
             <div className="flex flex-wrap gap-1 pt-1">
-              {module.key === 'companions' &&
-                module.actions.map(a => (
-                  <button
-                    className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-[10px]"
-                    key={a.action}
-                    onClick={() =>
-                      run(`陪玩 ${a.label}`, () => adminApi.reviewCompanion(token!, record.id, a.action as 'APPROVE' | 'REJECT'))
-                    }
-                  >
-                    {a.label}
-                  </button>
-                ))}
+              {module.key === 'companions' && <CompanionReviewActions record={record} scopeKey={token} onReview={input => reviewCompanionApplication(record, input)} />}
               {module.key === 'orders' &&
                 module.actions.map(a => (
                   <button
@@ -653,18 +658,7 @@ export default function AdminWorkbench({ token, adminEmail, onLogout }: AdminWor
                   </td>
                 ))}
                 <td className="border-b border-white/5 py-2 px-3 space-x-1 whitespace-nowrap">
-                  {module.key === 'companions' &&
-                    module.actions.map(a => (
-                      <button
-                        className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-purple-200"
-                        key={a.action}
-                        onClick={() =>
-                          run(`陪玩 ${a.label}`, () => adminApi.reviewCompanion(token!, record.id, a.action as 'APPROVE' | 'REJECT'))
-                        }
-                      >
-                        {a.label}
-                      </button>
-                    ))}
+                  {module.key === 'companions' && <CompanionReviewActions record={record} scopeKey={token} onReview={input => reviewCompanionApplication(record, input)} />}
                   {module.key === 'orders' &&
                     module.actions.map(a => (
                       <button
