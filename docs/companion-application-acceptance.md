@@ -53,6 +53,10 @@ Initial full-browser failures exposed obsolete test selectors (Me status labels 
 
 Screenshots are under the ignored `test-results/companion-applications-dis-9903a-keeps-identity-and-old-data/` directory: `wizard-step2-*`, `wizard-step3-*`, `pending-*`, `rejected-*`, `review-dialog-mobile-en.png`, `review-dialog-desktop-en.png`, `approved-mobile-ar.png`, `approved-desktop-ar.png`, and `approved-player-center-desktop-ar.png`. The parent visually inspected representative applicant and administrator screenshots. Do not publish fixture storage or screenshots to GitHub.
 
-## Limits
+## GitHub Receipt
+
+The verified runtime source was published to `sogeryou/laeeb`, `codex/independent-auth`: [commit `9528cd4`](https://github.com/sogeryou/laeeb/commit/9528cd485445ff3f8ed333b45c6a6fc3d13e584d). Git fetch and exact tree comparison confirmed `30d12495c7fcf27b0dcd58d58ce96ea3af58721f` on both sides. This receipt is added afterward as documentation only, with no runtime changes.
+
+## Release Boundaries
 
 Recording, game/cover uploads, promotions and review-notification delivery are not integrated. Arabic coverage here concerns the touched application states and layout, not a full-platform translation audit; existing wizard/admin copy still contains fallback English/Chinese. The existing large-bundle build warning and deprecated React test-renderer notices remain. Local JSON failure rollback is not production transaction certification. Direct development-branch pushes do not trigger the current main/master/PR-only CI or any production deployment.

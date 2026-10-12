@@ -46,9 +46,9 @@ Files: `admin/services/adminApi.ts`, focused `admin/components/CompanionReviewAc
 - [x] Test pending-only controls, required rejection reason, expected revision, busy/error handling and no fake review success. Implement in both original table/card contexts.
 - [x] Start fresh disposable preview on port 3014; never run write checks against remote/ordinary URLs. Exercise real applicant/admin UI reject/resubmit/approve and account role reload, EN/AR desktop/mobile layout and media controls.
 - [x] Run full single-worker tests, types/build and whitespace checks; independent review, fix and rerun all findings.
-- [ ] Commit only approved files, publish to the authorized GitHub branch via available authenticated connection, compare exact local/remote trees and retain unrelated user files. Record commit URL and release limitations.
+- [x] Commit only approved files, publish to the authorized GitHub branch via available authenticated connection, compare exact local/remote trees and retain unrelated user files. Record commit URL and release limitations.
 
-Acceptance: `docs/companion-application-acceptance.md`. Final local checks: 295 tests/45 files, four guarded browser tests, client/server types, Vite build and whitespace all pass. Publication is verified after creating the source snapshot; the final receipt will record the actual remote commit and tree.
+Acceptance: `docs/companion-application-acceptance.md`. Final local checks: 295 tests/45 files, four guarded browser tests, client/server types, Vite build and whitespace all pass. Published source commit: `9528cd485445ff3f8ed333b45c6a6fc3d13e584d`; verified local/remote tree: `30d12495c7fcf27b0dcd58d58ce96ea3af58721f`. The later receipt commit changes documentation only.
 
 ```sh
 node_modules/.bin/vitest run --reporter=dot --maxWorkers=1 --minWorkers=1

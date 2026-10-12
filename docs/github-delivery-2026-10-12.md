@@ -41,8 +41,12 @@ The existing CI workflow runs on main/master pushes and pull requests, not on a 
 
 Remaining boundaries: real recharge/payment integrations, production transaction storage and reconciliation, monitoring and launch/security certification, full-platform Arabic review, service deletion and media recording/upload are not delivered by this push.
 
-## Companion Application Delivery Candidate
+## Confirmed Companion Application Delivery
 
-The next verified source snapshot adds persisted PENDING/OFFLINE applications, owner status/draft recovery, rejected resubmission, permission-checked administrative decisions and authoritative role synchronization. Media/recording/promotions remain unavailable rather than simulated. Preserve old approved providers, orders and synthetic fixture balances.
+The verified source snapshot adds persisted PENDING/OFFLINE applications, owner status/draft recovery, rejected resubmission, permission-checked administrative decisions and authoritative role synchronization. Media/recording/promotions remain unavailable rather than simulated. Old approved providers, orders and synthetic fixture balances are preserved.
 
-Local acceptance: `docs/companion-application-acceptance.md`. Final checks: 295 tests across 45 files; four guarded Chrome application tests; client/server types, Vite build and whitespace all pass. The new snapshot must be published as a fast-forward from the verified `9dd495f566487e04ab4637b59f3549221887cc70` tip with an expected-head check, never to `origin`. Record the actual remote commit/tree after that update is confirmed; this candidate note does not itself claim publication.
+Local acceptance: `docs/companion-application-acceptance.md`. Final checks: 295 tests across 45 files; four guarded Chrome application tests; client/server types, Vite build and whitespace all pass.
+
+Published source commit: [`9528cd485445ff3f8ed333b45c6a6fc3d13e584d`](https://github.com/sogeryou/laeeb/commit/9528cd485445ff3f8ed333b45c6a6fc3d13e584d). Parent: `9dd495f566487e04ab4637b59f3549221887cc70`. Exact tree: `30d12495c7fcf27b0dcd58d58ce96ea3af58721f`. The connected GitHub tool published the explicitly selected 29-file snapshot with `expected_sha` and `force=false`. A subsequent fetch confirmed the branch head and zero tree differences from the locally tested commit.
+
+The local CLI source commit is retained at `codex/local-companion-application-delivery-2026-10-12`; the working branch is aligned to the identical-tree GitHub commit. Unrelated `backend/routes/auth 2.ts` is still untouched/untracked. This confirmation, acceptance receipt and completed plan are a later documentation-only commit; no runtime source changes follow the verified source snapshot. No production deployment or main-branch merge was performed, and branch-only publication does not trigger the existing CI.
