@@ -83,8 +83,11 @@ import { formatChatMessageTime } from '../lib/chatTime';
 
 import { useApp } from './AppContext';
 import { ViewRouter } from '../views/ViewRouter';
+import { notificationCopy } from '../components/notifications/copy';
 
 export function AppShell() {
+const app = useApp();
+const notificationLabel = notificationCopy(app.locale).title + (app.notifications.unreadCount > 0 ? ` (${app.notifications.unreadCount} ${notificationCopy(app.locale).unread})` : '');
 const {
     deviceId, locale, setLocale, t, supportedLocales, getLocaleLabel,
     currentView, setCurrentView, wallet, setWallet, transactions, setTransactions,
@@ -135,7 +138,7 @@ const {
     filteredPosts, toggleFollow, confirmUnfollow, copyToClipboard, observer, lastElementRef, legendEPals,
     navigateTo, handleBack, loadMore, toggleFavorite, handlePlayToggle, allSortedGames, favoritedGames, alphabet, scrollToLetter, groupedGames,
     EPALS, GAMES, POSTS,
-  } = useApp();
+  } = app;
 
   return (
     <div className={`min-h-screen ${currentView === 'PLAYER_CENTER' ? 'bg-[#07110f]' : 'bg-[#0f071a]'} text-white font-sans selection:bg-purple-500/30`}>
@@ -205,8 +208,9 @@ const {
                       <button onClick={() => navigateTo('CONTACTS')} className="p-2 hover:bg-white/10 rounded-full">
                         <Users className="w-5 h-5" />
                       </button>
-                      <button onClick={() => navigateTo('NOTIFICATIONS')} className="p-2 hover:bg-white/10 rounded-full">
+                      <button aria-label={notificationLabel} title={notificationLabel} onClick={() => navigateTo('NOTIFICATIONS')} className="relative h-9 w-9 flex items-center justify-center hover:bg-white/10 rounded-full">
                         <Bell className="w-5 h-5" />
+                        {app.notifications.unreadCount > 0 && <span aria-hidden="true" className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400" />}
                       </button>
                     </div>
                   </div>

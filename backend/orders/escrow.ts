@@ -3,6 +3,7 @@ import type { OrderEntity } from '../domain/types.js';
 import type { OrderAction as ParticipantOrderAction } from '../../shared/orders.js';
 import { providerRestricted } from './eligibility.js';
 import { persistOrderMutation } from './persistence.js';
+import { emitOrderNotification } from '../notifications/events.js';
 
 export class OrderFlowError extends Error {
   constructor(code: string, public readonly status = 409) { super(code); }
@@ -26,6 +27,7 @@ export function freezeOrder(ctx: AppContext, order: OrderEntity, now = Date.now(
   wallet.balance = money(cents(wallet.balance) - cents(order.totalPrice)); wallet.lastUpdated = now;
   Object.assign(order, { workflowVersion: 2, escrowState: 'FROZEN', frozenAmount: order.totalPrice, paidAt: now, updatedAt: now });
   post(ctx, order, 'ORDER_PAY', order.userId, -order.totalPrice, wallet.balance, now);
+  emitOrderNotification(ctx, order, now);
 }
 function release(ctx: AppContext, order: OrderEntity, refund: boolean, now: number) {
   if (order.escrowState !== 'FROZEN' || order.frozenAmount !== order.totalPrice) fail('ESCROW_INVALID');
@@ -82,8 +84,23 @@ export function actOnOrder(ctx: AppContext, order: OrderEntity, actor: string, a
     release(ctx, order, action === 'refund', now); order.status = action === 'refund' ? 'REFUNDED' : 'COMPLETED';
   }
   order.updatedAt = now;
+  emitOrderNotification(ctx, order, now);
   return order;
 }
+
+export function arbitrateOrder(ctx: AppContext, order: OrderEntity, actor: string, action: 'refund' | 'uphold', now = Date.now()) {
+  const terminalReplay = action === 'refund'
+    ? order.status === 'REFUNDED' && order.escrowState === 'RETURNED'
+    : order.status === 'COMPLETED' && order.escrowState === 'SETTLED';
+  if (terminalReplay) return actOnOrder(ctx, order, actor, action, {}, now, true);
+  return persistOrderMutation(ctx, () => {
+    actOnOrder(ctx, order, actor, action, {}, now, true);
+    const decision = action === 'refund' ? 'REFUND' : 'UPHOLD';
+    ctx.appendAuditLog(actor, `ORDER_ARBITRATION_${decision}`, 'order', order.id, { decision });
+    return order;
+  });
+}
+
 export function expireOrders(ctx: AppContext, now = Date.now()) {
   const expired = ctx.orders.filter(order => order.workflowVersion === 2 && order.escrowState === 'FROZEN'
     && ((order.status === 'CREATED' && now >= order.paidAt! + 900_000)

@@ -13,6 +13,9 @@ import { useUiStore } from '../stores/uiStore';
 import { resolveOrderContext } from '../lib/resolveOrderContext';
 import { useSocial } from '../hooks/useSocial';
 import { useOrders } from '../hooks/useOrders';
+import { useNotifications } from '../hooks/useNotifications';
+import { resolveNotificationTarget } from '../components/notifications/target';
+import type { AppNotification } from '@shared/notifications';
 import { useCompanionApplication } from '../hooks/useCompanionApplication';
 import { refreshApplicationOwnerSession } from '../components/application/approvedSession';
 import { usePublicCompanionProfile } from '../hooks/usePublicCompanionProfile';
@@ -57,6 +60,10 @@ export function useAppState() {
   const authUserIdRef = useRef<string | null>(null);
   const adminLoginIntentRef = useRef(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const notifications = useNotifications(authToken, authUser?.id, Boolean(authToken && authUser && (authUser.profileComplete || authUser.role === 'ADMIN')));
+  const notificationOpenLock = useRef<{ id: string; guard: () => boolean } | null>(null);
+  const [notificationOpening, setNotificationOpening] = useState<{ id: string; guard: () => boolean } | null>(null);
+  const notificationOpeningId = notificationOpening?.guard() ? notificationOpening.id : null;
   const [authSessionReady, setAuthSessionReady] = useState(false);
 
   const fetchWallet = useCallback(async () => {
@@ -660,6 +667,35 @@ export function useAppState() {
 
   const legendEPals = useMemo(() => EPALS.filter(e => e.isLegend).slice(0, 10), []);
 
+  const openNotification = async (notification: AppNotification) => {
+    if (!authToken || !authUser?.id || notificationOpenLock.current?.guard()) return;
+    const owner = authUser.id;
+    const token = authToken;
+    const guard = notifications.sessionGuard(owner, token);
+    const operation = { id: notification.id, guard };
+    notificationOpenLock.current = operation;
+    setNotificationOpening(operation);
+    try {
+      const saved = await notifications.markRead(notification.id);
+      if (!saved || !guard()) return;
+      const target = await resolveNotificationTarget(token, saved, owner);
+      if (!guard()) return;
+      if (target.type === 'APPLICATION') {
+        navigateTo('APPLY_PLAYER');
+        void companionApplication.refresh();
+      } else {
+        if (!orders.reconcileFetchedOrder(target.order, owner, token, guard)) return;
+        navigateTo('MY_ORDERS');
+        setSelectedOrder(toIMOrder(target.order));
+        setShowOrderDetailModal(true);
+      }
+    } catch (error) {
+      if (guard()) notifications.setError(error instanceof Error ? error.message : 'NOTIFICATION_TARGET_UNAVAILABLE');
+    } finally {
+      if (notificationOpenLock.current === operation) { notificationOpenLock.current = null; setNotificationOpening(null); }
+    }
+  };
+
   const navigateTo = (view: View, data?: any) => {
     const requiresAuth = viewRequiresAuth(view, data);
     if (requiresAuth && !isAuthenticatedRef.current) {
@@ -840,7 +876,7 @@ export function useAppState() {
     isRecording, setIsRecording, recordingTime, setRecordingTime,
     pushNotificationsEnabled, setPushNotificationsEnabled, cacheSize, setCacheSize,
     isAuthenticated, setIsAuthenticated, isAuthenticatedRef, authToken, setAuthToken,
-    authUser, setAuthUser, authSessionReady,
+    authUser, setAuthUser, authSessionReady, notifications, openNotification, notificationOpeningId,
     showAuthModal, setShowAuthModal, authMode, setAuthMode, authEmail, setAuthEmail,
     authLoginMethod, setAuthLoginMethod, authPassword, setAuthPassword,
     authEmailCode, setAuthEmailCode, authCodeCooldown, authCodeSending,

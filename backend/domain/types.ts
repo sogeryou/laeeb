@@ -6,6 +6,7 @@ import type { StoredMessage, StoredPost } from '../routes/social.js';
 import type { StoredComment, LevelReview } from '../routes/socialContent.js';
 import type { CouponGrant, CouponTemplate, DeviceBan, ExposureLog, SupportTicket } from '../routes/ops.js';
 import type { CompanionApplicationDetails } from '../../shared/companionApplications.js';
+import type { AppNotification } from '../../shared/notifications.js';
 
 export type UserRole = 'USER' | 'PLAYER' | 'ADMIN';
 export type AccountStatus = 'ACTIVE' | 'FROZEN' | 'RISK_HOLD';
@@ -53,6 +54,7 @@ export type ModerationReport = {
 };
 
 export type PersistedState = {
+  notifications: Array<AppNotification & { eventKey: string }>;
   authState?: import('../auth/state.js').AuthSecurityState;
   socialMessages: StoredMessage[];
   socialPosts: StoredPost[];

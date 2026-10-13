@@ -1,4 +1,5 @@
 import type { AppContext } from '../app/context.js';
+import { notificationRows } from '../notifications/events.js';
 
 export class OrderSaveError extends Error {
   constructor() { super('ORDER_PERSISTENCE_UNAVAILABLE'); }
@@ -11,8 +12,9 @@ function restoreObject(target: object, saved: object) {
 
 // Keep the server's shared collection and entity references intact on rollback.
 export function persistOrderMutation<T>(ctx: AppContext, mutate: () => T): T {
+  notificationRows(ctx);
   const undo: Array<() => void> = [];
-  for (const key of ['orders', 'reviews', 'walletTransactions', 'couponGrants', 'levelEvents', 'riskEvents'] as const) {
+  for (const key of ['orders', 'reviews', 'walletTransactions', 'couponGrants', 'levelEvents', 'riskEvents', 'notifications', 'auditLogs'] as const) {
     const collection = ctx[key];
     if (!collection) continue;
     const rows = collection.slice();

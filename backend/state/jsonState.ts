@@ -15,7 +15,7 @@ const DATA_DIR = process.env.NODE_ENV !== 'production' && process.env.LOCAL_DATA
   ? path.resolve(process.env.LOCAL_DATA_DIR)
   : path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'storage.json');
-export const STORAGE_SCHEMA_VERSION = 12;
+export const STORAGE_SCHEMA_VERSION = 13;
 
 export const legacyHashPassword = (password: string, salt = crypto.randomBytes(16).toString('hex')) => {
   const digest = crypto.scryptSync(password, salt, 64).toString('hex');
@@ -38,6 +38,7 @@ export const normalizeUserPassword = (user: UserEntity) => {
 };
 
 export const defaultState = (): PersistedState => ({
+  notifications: [],
   authState: newAuthState(),
   socialMessages: [],
   socialPosts: [],
@@ -68,6 +69,7 @@ export const defaultState = (): PersistedState => ({
 });
 
 export const sanitizePersistedState = (s: PersistedState) => {
+  if (!Array.isArray(s.notifications)) s.notifications = [];
   if (!s.authState || typeof s.authState !== 'object') s.authState = newAuthState();
   for (const key of ['codes', 'grants', 'sends', 'failures', 'uploads'] as const) {
     if (!s.authState[key] || typeof s.authState[key] !== 'object') s.authState[key] = {};

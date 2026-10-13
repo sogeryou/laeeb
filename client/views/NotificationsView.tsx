@@ -1,184 +1,56 @@
 import React from 'react';
-import { 
-  Search, 
-  Gift, 
-  Gamepad2, 
-  Coffee, 
-  Star, 
-  Home, 
-  Compass, 
-  MessageSquare, 
-  User, 
-  ChevronRight, 
-  Play, 
-  MessageCircle,
-  ArrowLeft,
-  CheckCircle2,
-  Mic2,
-  MapPin,
-  User2,
-  Heart,
-  Venus,
-  Mars,
-  Copy,
-  Check,
-  Plus,
-  Minus,
-  ShoppingCart,
-  Image,
-  Layout,
-  Monitor,
-  Smartphone,
-  Share2,
-  ChevronDown,
-  ChevronUp,
-  Filter,
-  SlidersHorizontal,
-  ThumbsUp,
-  MoreHorizontal,
-  Flag,
-  Users,
-  Zap,
-  Trophy,
-  Send,
-  Bell,
-  Contact,
-  Smile,
-  AlertTriangle,
-  Wallet,
-  CreditCard,
-  History,
-  Settings,
-  X,
-  Camera,
-  LogOut,
-  ShieldCheck,
-  HelpCircle,
-  Gem,
-  ArrowUpRight,
-  ArrowDownLeft,
-  FileText,
-  Calendar,
-  Store,
-  ChevronLeft,
-  Lock,
-  Globe,
-  Shield,
-  Link,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Category, Game, EPal, EPalServiceVariant, Coupon, Playlink, Post, Message, ChatSession, IMOrder, Wallet as WalletType, RechargePackage, WalletTransaction, RechargeOrder } from '@shared/types';
-import { PRODUCT_SEMVER } from '../constants';
-import { GlassCard } from '../components/ui/GlassCard';
-import { IconButton } from '../components/ui/IconButton';
-import { WaveAnimation } from '../components/ui/WaveAnimation';
-import { CoinIcon } from '../components/ui/CoinIcon';
-import { EPalCard } from '../components/cards/EPalCard';
-import { LegendEPalCard } from '../components/cards/LegendEPalCard';
-import { GameGridItem } from '../components/cards/GameGridItem';
-import { WalletView } from '../views/WalletView';
-import { RechargeView } from '../views/RechargeView';
-import { SettingsSubPage } from '../components/SettingsSubPage';
-import { formatChatMessageTime } from '../lib/chatTime';
-
+import { ArrowLeft, Check, CheckCheck, FileText, LoaderCircle, RefreshCw, ShoppingCart } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useApp } from '../app/AppContext';
+import { notificationContent, notificationCopy, notificationErrorText } from '../components/notifications/copy';
 
 export function NotificationsView() {
-const {
-    deviceId, locale, setLocale, t, supportedLocales, getLocaleLabel,
-    currentView, setCurrentView, wallet, setWallet, transactions, setTransactions,
-    rechargePackages, setRechargePackages, isRecharging, setIsRecharging,
-    isRecording, setIsRecording, recordingTime, setRecordingTime,
-    pushNotificationsEnabled, setPushNotificationsEnabled, cacheSize, setCacheSize,
-    isAuthenticated, setIsAuthenticated, isAuthenticatedRef, authToken, setAuthToken,
-    showAuthModal, setShowAuthModal, authMode, setAuthMode, authEmail, setAuthEmail,
-    authPassword, setAuthPassword, authUsername, setAuthUsername, authStatus, setAuthStatus,
-    toastMessage, setToastMessage, companionRankings, setCompanionRankings,
-    rankingsLoading, setRankingsLoading, rankingsError, setRankingsError,
-    rankingSortBy, setRankingSortBy, showRankingModal, setShowRankingModal,
-    expandedRankingId, setExpandedRankingId, pendingNavigationRef, authTokenRef,
-    fetchWallet, fetchTransactions, fetchPackages, fetchCompanionRankings, sortedRankings,
-    openAuthModal, notify, requireAuthAction, handleLogout, handleAuthSubmit, handleRecharge,
-    selectedCategory, setSelectedCategory, searchQuery, setSearchQuery, selectedGame, setSelectedGame,
-    selectedServiceCategory, setSelectedServiceCategory, applicationDetails, setApplicationDetails,
-    selectedEPal, setSelectedEPal, selectedPost, setSelectedPost, showGiftPanel, setShowGiftPanel,
-    selectedGiftId, setSelectedGiftId, giftQuantity, setGiftQuantity, showQuantitySelector, setShowQuantitySelector,
-    userCoins, setUserCoins, userDiamonds, setUserDiamonds, withdrawAmount, setWithdrawAmount,
-    withdrawAddress, setWithdrawAddress, withdrawSubmitting, setWithdrawSubmitting,
-    userRole, setUserRole, isPlayerOnline, setIsPlayerOnline, playerApplicationStatus, setPlayerApplicationStatus,
-    playerApplicationStep, setPlayerApplicationStep, playerApplicationData, setPlayerApplicationData,
-    applyGameSearchQuery, setApplyGameSearchQuery, showApplySelectionModal, setShowApplySelectionModal,
-    showGameSelectorModal, setShowGameSelectorModal, focusCommentInput, setFocusCommentInput, commentInputRef,
-    handleWithdrawSubmit, moreEPals, setMoreEPals, loadingMore, setLoadingMore, favorites, setFavorites,
-    playingEPalId, setPlayingEPalId, activeServiceId, setActiveServiceId, selectedVariant, setSelectedVariant,
-    orderQuantity, setOrderQuantity, availableCoupons, setAvailableCoupons, selectedCoupon, setSelectedCoupon,
-    showCouponModal, setShowCouponModal, showServiceTypeModal, setShowServiceTypeModal,
-    profileTab, setProfileTab, selectedPlaylinkId, setSelectedPlaylinkId, showPlaylinkModal, setShowPlaylinkModal,
-    showUnfollowModal, setShowUnfollowModal, epalToUnfollow, setEpalToUnfollow, showServiceDetails, setShowServiceDetails,
-    reviewSortOrder, setReviewSortOrder, selectedReviewTag, setSelectedReviewTag, selectedRatingFilter, setSelectedRatingFilter,
-    showReviewFilterModal, setShowReviewFilterModal, imTab, setImTab, imSearchQuery, setImSearchQuery,
-    walletTab, setWalletTab, walletDate, setWalletDate, selectedApplyGameCategory, setSelectedApplyGameCategory,
-    epalSortBy, setEpalSortBy, epalFilters, setEpalFilters, showEpalFilterModal, setShowEpalFilterModal,
-    showRankSelectorModal, setShowRankSelectorModal, showServerSelectorModal, setShowServerSelectorModal,
-    showPlatformSelectorModal, setShowPlatformSelectorModal, isImSearchExpanded, setIsImSearchExpanded,
-    chatSessions, setChatSessions, imOrders, setImOrders, showOngoingOrderWarning, setShowOngoingOrderWarning,
-    currentMessages, setCurrentMessages, messageInput, setMessageInput, selectedOrder, setSelectedOrder,
-    showOrderDetailModal, setShowOrderDetailModal, showImServiceCards, setShowImServiceCards,
-    showReviewModal, setShowReviewModal, reviewRating, setReviewRating, reviewTags, setReviewTags, reviewFeedback, setReviewFeedback,
-    orderTab, setOrderTab, userStatus, setUserStatus, showStatusModal, setShowStatusModal, viewHistory, setViewHistory,
-    contactsTab, setContactsTab, communityTab, setCommunityTab, showFullSearch, setShowFullSearch,
-    fullSearchQuery, setFullSearchQuery, fullSearchResults, setFullSearchResults,
-    isScrolling, setIsScrolling, copied, setCopied, followedEPals, setFollowedEPals, followersOfMe, mutualFollowers,
-    filteredPosts, toggleFollow, confirmUnfollow, copyToClipboard, observer, lastElementRef, legendEPals,
-    navigateTo, handleBack, loadMore, toggleFavorite, handlePlayToggle, allSortedGames, favoritedGames, alphabet, scrollToLetter, groupedGames,
-    EPALS, GAMES, POSTS,
-  } = useApp();
-
-  return (
-            <motion.div 
-              key="notifications"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="min-h-screen pb-32 bg-[#0f071a] p-6 space-y-6"
-            >
-              <div className="flex items-center gap-4">
-                <button onClick={handleBack} className="p-2 bg-white/5 rounded-xl border border-white/10">
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <h1 className="text-xl font-bold">Notifications</h1>
-              </div>
-
-              <div className="space-y-4">
-                {[
-                  { title: 'Order Accepted', content: 'Your order for League of Legends has been accepted by Player123.', time: '2 mins ago', type: 'ORDER', unread: true },
-                  { title: 'Recharge Successful', content: 'Your recharge of 100 Coins has been confirmed.', time: '1 hour ago', type: 'PAYMENT', unread: false },
-                  { title: 'New Message', content: 'Player456 sent you a message.', time: '3 hours ago', type: 'CHAT', unread: false },
-                  { title: 'System Update', content: 'New features added to the platform! Check them out.', time: '1 day ago', type: 'SYSTEM', unread: false },
-                ].map((notif, idx) => (
-                  <div key={idx} className={`p-5 space-y-2 relative overflow-hidden border-b border-white/5 last:border-0 ${notif.unread ? 'bg-purple-500/5' : ''}`}>
-                    {notif.unread && (
-                      <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 blur-2xl -translate-y-1/2 translate-x-1/2" />
-                    )}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${
-                          notif.type === 'ORDER' ? 'bg-blue-500/20 text-blue-400' :
-                          notif.type === 'PAYMENT' ? 'bg-green-500/20 text-green-400' :
-                          notif.type === 'CHAT' ? 'bg-purple-500/20 text-purple-400' :
-                          'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {notif.type}
-                        </span>
-                        {notif.unread && <div className="w-2 h-2 rounded-full bg-purple-500" />}
-                      </div>
-                      <span className="text-[10px] font-bold text-gray-600">{notif.time}</span>
-                    </div>
-                    <h3 className="font-bold text-white">{notif.title}</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">{notif.content}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-  );
+  const { locale, handleBack, notifications, openNotification, notificationOpeningId } = useApp();
+  const copy = notificationCopy(locale);
+  const rtl = locale.toLowerCase().startsWith('ar');
+  const busy = Boolean(notifications.pendingId || notificationOpeningId);
+  return <motion.div key="notifications" dir={rtl ? 'rtl' : 'ltr'}
+    initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+    className="min-h-screen pb-32 bg-[#0f071a] p-6 space-y-6">
+    <div className="flex items-center gap-2">
+      <button type="button" aria-label={copy.back} title={copy.back} onClick={handleBack} className="h-10 w-10 shrink-0 flex items-center justify-center bg-white/5 rounded-lg border border-white/10"><ArrowLeft className="w-5 h-5" /></button>
+      <div className="min-w-0 flex-1"><h1 className="text-xl font-bold">{copy.title}</h1>
+        <p aria-live="polite" className="text-xs text-gray-400">{new Intl.NumberFormat(rtl ? 'ar' : 'en').format(notifications.unreadCount)} {copy.unread}</p>
+      </div>
+      <button type="button" aria-label={copy.refresh} title={copy.refresh} disabled={busy} onClick={() => void notifications.refresh()} className="h-10 w-10 shrink-0 flex items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-40"><RefreshCw className={'w-5 h-5 ' + (notifications.loading ? 'animate-spin' : '')} /></button>
+      <button type="button" aria-label={copy.markAllRead} title={copy.markAllRead} disabled={busy || notifications.unreadCount === 0} onClick={() => void notifications.markAllRead()} className="h-10 w-10 shrink-0 flex items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-40"><CheckCheck className="w-5 h-5" /></button>
+    </div>
+    {notifications.error && <p role="alert" className="break-words text-sm text-red-300">{notificationErrorText(notifications.error, locale)}</p>}
+    {notifications.loading && notifications.items.length === 0 && <p role="status" className="py-12 text-center text-sm text-gray-400">{copy.loading}</p>}
+    {!notifications.loading && !notifications.error && notifications.items.length === 0 && <p className="py-12 text-center text-sm text-gray-400">{copy.empty}</p>}
+    <div className="space-y-4">
+      {notifications.items.map(item => {
+        const content = notificationContent(item, locale);
+        const unread = item.readAt === undefined;
+        const saving = notifications.pendingId === item.id || notificationOpeningId === item.id;
+        const Icon = item.target.type === 'ORDER' ? ShoppingCart : FileText;
+        return <article key={item.id} className={'p-5 space-y-2 border-b border-white/5 last:border-0 ' + (unread ? 'bg-purple-500/5' : '')}>
+          <div className="flex items-start justify-between gap-3 text-xs text-gray-400">
+            <div className="flex min-w-0 flex-wrap items-center gap-2"><Icon className="h-4 w-4 shrink-0" /><span>{item.target.type === 'ORDER' ? copy.order : copy.application}</span>
+              <span className={unread ? 'text-amber-300' : 'text-gray-500'}>{unread ? copy.unread : copy.read}</span>
+            </div>
+            <time dateTime={new Date(item.createdAt).toISOString()} className="shrink-0 max-w-[45%] text-end text-[10px]">{new Date(item.createdAt).toLocaleString(rtl ? 'ar' : 'en')}</time>
+          </div>
+          <div className="flex items-start gap-3">
+            <button type="button" aria-label={copy.open + ': ' + content.title} title={copy.open} disabled={busy}
+              onClick={() => void openNotification(item)} className="min-w-0 flex-1 text-start space-y-2 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400 disabled:opacity-60">
+              <h3 className="font-bold text-white [overflow-wrap:anywhere]">{content.title}</h3>
+              <p className="text-xs text-gray-400 leading-relaxed [overflow-wrap:anywhere]">{content.body}</p>
+            </button>
+            {unread ? <button type="button" aria-label={copy.markRead} title={copy.markRead} disabled={busy}
+              onClick={() => void notifications.markRead(item.id)} className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-40">
+              {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            </button> : <span title={copy.read} aria-label={copy.read} className="h-9 w-9 shrink-0 flex items-center justify-center text-green-400"><CheckCheck className="h-4 w-4" /></span>}
+          </div>
+        </article>;
+      })}
+    </div>
+    {notifications.nextCursor && <button type="button" disabled={busy || notifications.loadingMore} onClick={() => void notifications.loadMore()}
+      className="w-full py-3 text-sm rounded-lg border border-white/10 text-gray-300 disabled:opacity-40">{notifications.loadingMore ? copy.loading : copy.more}</button>}
+  </motion.div>;
 }

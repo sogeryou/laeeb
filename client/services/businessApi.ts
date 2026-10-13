@@ -2,6 +2,7 @@ import type { Coupon, EPal, RechargeOrder, RechargePackage, Wallet as WalletType
 import type { ManagedCompanionProfile, UpdateCompanionProfile } from '@shared/companionManagement';
 import type { BusinessOrder, BusinessReview, CreateOrderInput, OrderAction, OrderQuote } from '@shared/orders';
 import type { CompanionApplication, CompanionApplicationResponse, SubmitCompanionApplication } from '@shared/companionApplications';
+import type { NotificationsPage, NotificationReadResult, NotificationsReadAllResult } from '@shared/notifications';
 export type { BusinessOrder, BusinessReview } from '@shared/orders';
 
 export type { AuthUser } from '@shared/auth';
@@ -63,6 +64,18 @@ async function request<T>(path: string, method: HttpMethod, body?: unknown, toke
 }
 
 export const businessApi = {
+  listNotifications(token: string, options: { cursor?: string; limit?: number } = {}) {
+    const query = new URLSearchParams();
+    if (options.cursor) query.set('cursor', options.cursor);
+    if (options.limit !== undefined) query.set('limit', String(options.limit));
+    return request<NotificationsPage>(`/api/notifications${query.size ? `?${query}` : ''}`, 'GET', undefined, token);
+  },
+  readNotification(token: string, id: string) {
+    return request<NotificationReadResult>(`/api/notifications/${encodeURIComponent(id)}/read`, 'POST', {}, token);
+  },
+  readAllNotifications(token: string) {
+    return request<NotificationsReadAllResult>('/api/notifications/read-all', 'POST', {}, token);
+  },
   register(username: string, email: string, password: string, deviceId?: string) {
     return request<unknown>('/api/auth/register', 'POST', { username, email, password, deviceId });
   },

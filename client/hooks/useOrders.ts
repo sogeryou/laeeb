@@ -138,6 +138,14 @@ export function useOrders(token: string | null, userId: string | undefined, acti
   }, [mutate, currentAccount]);
   const act = useCallback((id: string, action: OrderAction, body?: { evidence?: string[]; reason?: string }) => mutate(id, access => businessApi.updateOrder(access, id, action, body), merge), [mutate]);
   const review = useCallback((id: string, rating: number, content: string, tags: string[] = []) => mutate<BusinessReview>(`review:${id}`, access => businessApi.createReview(access, id, rating, content, tags), (value, items) => items.map(item => item.id === id ? { ...item, reviewed: true, review: value } : item)), [mutate]);
+  const reconcileFetchedOrder = useCallback((order: BusinessOrder, owner: string, access: string, isCurrent: () => boolean) => {
+    const session = { ...identity.current };
+    if (!isCurrent() || !current(session) || session.userId !== owner || session.token !== access
+      || (order.role !== 'COMPANION' && !(order.role === 'BUYER' && order.userId === owner))) return false;
+    snapshot.current++;
+    setCache(previous => ({ ...previous, owner, items: merge(order, previous.owner === owner ? previous.items : []), loading: false }));
+    return true;
+  }, [current]);
   const visible = token && userId && cache.owner === userId ? cache : empty();
-  return { ...visible, refresh, quote, create, act, review, getError };
+  return { ...visible, refresh, quote, create, act, review, getError, reconcileFetchedOrder };
 }

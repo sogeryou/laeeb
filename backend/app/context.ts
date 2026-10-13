@@ -18,6 +18,7 @@ export type SendError = (
 ) => unknown;
 
 export type AppContext = {
+  notifications: PersistedState['notifications'];
   authState?: import('../auth/state.js').AuthSecurityState;
   socialMessages: PersistedState['socialMessages'];
   socialPosts: PersistedState['socialPosts'];

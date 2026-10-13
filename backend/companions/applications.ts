@@ -9,6 +9,7 @@ import { zValidate } from '../middleware/validate.js';
 import { assertRateInLevelBand } from '../policy/index.js';
 import { levelFromHourlyRate } from '../policy/leveling.js';
 import { initialLevel } from '../player-center/officialLevel.js';
+import { emitCompanionReviewNotification, notificationRows } from '../notifications/events.js';
 
 const reviewSchema = z.object({
   action: z.enum(['APPROVE', 'REJECT']),
@@ -111,6 +112,8 @@ export function registerCompanionReviewRoutes(app: express.Application, ctx: App
     const previous = { ...companion };
     const previousRole = user.role;
     const previousAudit = ctx.auditLogs.slice();
+    const notifications = notificationRows(ctx);
+    const previousNotifications = notifications.slice();
     companion.status = status;
     companion.availability = 'OFFLINE';
     companion.updatedAt = Math.max(Date.now(), previous.updatedAt + 1);
@@ -121,11 +124,13 @@ export function registerCompanionReviewRoutes(app: express.Application, ctx: App
     if (action === 'REJECT' && user.role !== 'ADMIN') user.role = 'USER';
     try {
       ctx.appendAuditLog((req as any).authUserId, `COMPANION_${action}`, 'companion', companion.id, { status });
+      emitCompanionReviewNotification(ctx, companion);
       ctx.persistState();
     } catch {
       restoreCompanion(companion, previous);
       user.role = previousRole;
       ctx.auditLogs.splice(0, ctx.auditLogs.length, ...previousAudit);
+      notifications.splice(0, notifications.length, ...previousNotifications);
       return saveFailed(ctx, res);
     }
     return res.json({ ...companion, rejectionReason: companion.application?.rejectionReason, reviewedAt: companion.application?.reviewedAt });

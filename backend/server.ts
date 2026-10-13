@@ -54,13 +54,15 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerBusinessRoutes } from './routes/business.js';
 import { registerHomeExposure } from './routes/homeExposure.js';
 import { registerLevelInitialization } from './player-center/officialLevel.js';
-import { actOnOrder, expireOrders, OrderFlowError } from './orders/escrow.js';
+import { arbitrateOrder, expireOrders, OrderFlowError } from './orders/escrow.js';
+import { OrderSaveError } from './orders/persistence.js';
 import { registerPlayerCenterRoutes } from './player-center/routes.js';
 import { registerSocialRoutes } from './routes/social.js';
 import { registerSocialContentRoutes } from './routes/socialContent.js';
 import { registerFinanceRoutes } from './routes/finance.js';
 import { registerUploadRoutes } from './routes/uploads.js';
 import { registerCompanionReviewRoutes } from './companions/applications.js';
+import { registerNotificationRoutes } from './notifications/routes.js';
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -518,6 +520,7 @@ async function startServer() {
     sessions,
     companions,
     orders,
+    notifications: state.notifications,
     reviews,
     riskEvents,
     auditLogs,
@@ -550,6 +553,7 @@ async function startServer() {
 
   registerAuthRoutes(app, appContext);
   registerBusinessRoutes(app, appContext);
+  registerNotificationRoutes(app, appContext);
   registerHomeExposure(app, appContext);
   registerLevelInitialization(app, appContext);
   registerPlayerCenterRoutes(app, appContext);
@@ -692,10 +696,10 @@ async function startServer() {
       const decision = req.body?.decision;
       if (action !== 'RESOLVE_DISPUTE' || !['REFUND', 'UPHOLD'].includes(decision)) return sendError(res, 400, 'ARBITRATION_DECISION_REQUIRED', 'Choose REFUND or UPHOLD for a disputed order');
       try {
-        actOnOrder(appContext, order, (req as any).authUserId, decision === 'REFUND' ? 'refund' : 'uphold', {}, Date.now(), true);
-        appendAuditLog((req as any).authUserId, `ORDER_ARBITRATION_${decision}`, 'order', order.id, { decision });
-        persistState(); return res.json(order);
+        arbitrateOrder(appContext, order, (req as any).authUserId, decision === 'REFUND' ? 'refund' : 'uphold');
+        return res.json(order);
       } catch (error) {
+        if (error instanceof OrderSaveError) return sendError(res, 503, error.message, 'Order persistence unavailable');
         if (error instanceof OrderFlowError) return sendError(res, 409, error.message, error.message);
         throw error;
       }
