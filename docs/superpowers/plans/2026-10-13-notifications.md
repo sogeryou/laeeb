@@ -53,7 +53,7 @@ Files: guarded `tests/e2e/notifications.spec.ts`, `docs/notifications-acceptance
 - [x] Start fresh disposable fixture on 3016; UI review creates a real result notification, UI funded order creates real participant notifications; no events for 39 legacy orders.
 - [x] Exercise read/read-all/reload/targets/failure/account isolation; capture EN/AR mobile/desktop, notification bell and existing dialogs without overlap.
 - [x] Run full single-worker suite, both type checks, Vite build and whitespace checks. Obtain independent read-only review, TDD-fix findings and rerun affected/full checks.
-- [ ] Explicitly stage only approved files, commit, publish to `sogeryou/laeeb` / `codex/independent-auth` through authenticated connection with expected-head protection, fetch and compare exact tested trees; leave unrelated files intact.
+- [x] Explicitly stage only approved files, commit, publish to `sogeryou/laeeb` / `codex/independent-auth` through authenticated connection with expected-head protection, fetch and compare exact tested trees; leave unrelated files intact.
 
 ```sh
 node_modules/.bin/vitest run --reporter=dot --maxWorkers=1 --minWorkers=1
