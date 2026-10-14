@@ -48,6 +48,7 @@ export interface CompanionRanking {
 }
 
 import { apiUrl, readJsonResponse } from '@shared/apiClient';
+import type { AccountProfile, UpdateAccountProfile } from '@shared/accountProfile';
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH';
 
@@ -64,6 +65,15 @@ async function request<T>(path: string, method: HttpMethod, body?: unknown, toke
 }
 
 export const businessApi = {
+  getAccountProfile(token: string) {
+    return request<AccountProfile>('/api/account/profile', 'GET', undefined, token);
+  },
+  updateAccountProfile(token: string, input: UpdateAccountProfile) {
+    return request<AccountProfile>('/api/account/profile', 'PATCH', input, token);
+  },
+  getSocialPeer(token: string, id: string) {
+    return request<import('@shared/types').EPal>(`/api/social/peer/${encodeURIComponent(id)}`, 'GET', undefined, token);
+  },
   listNotifications(token: string, options: { cursor?: string; limit?: number } = {}) {
     const query = new URLSearchParams();
     if (options.cursor) query.set('cursor', options.cursor);

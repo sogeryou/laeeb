@@ -12,7 +12,7 @@ export function companionProfile(ctx: AppContext, companion: CompanionEntity, ra
   return {
     id: companion.id, userId: companion.userId, name: user?.username || 'Player', avatarUrl,
     rating, orderCount, price: serviceChoices(companion)[0].unitPrice, game: companion.gameName,
-    tags: user?.tags || [], onlineStatus: companion.availability === 'ONLINE' ? 'Online' : companion.availability === 'BUSY' ? 'Busy' : 'Offline', bio: companion.intro,
+    tags: user?.tags || [], onlineStatus: companion.availability === 'ONLINE' ? 'Online' : companion.availability === 'BUSY' ? 'Busy' : 'Offline', bio: user?.bio ?? companion.intro,
     services: serviceChoices(companion).map(service => ({
       id: service.id, name: service.name, icon: '\u{1F3AE}', posterUrl: avatarUrl, description: companion.intro,
       rating, orderCount, screenshots: [], variants: [{ name: service.name, price: service.unitPrice, unit: service.unit }],

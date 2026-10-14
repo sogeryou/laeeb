@@ -24,7 +24,7 @@ export function registerSocialContentRoutes(app: express.Application, ctx: AppCo
   const fail = (res: express.Response, status: number, code: string) => ctx.sendError(res, status, code, code);
   app.use(['/api/social/posts', '/api/admin/social'], (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   const allowed = (p: StoredContent) => p.status === 'APPROVED' && !ctx.getBanError(ctx.users.find(u => u.id === p.userId), 'POST');
-  const fields = (p: StoredContent, viewer?: string) => ({ id: p.id, userId: p.userId, userName: ctx.users.find(u => u.id === p.userId)?.username || 'User', userAvatar: avatar,
+  const fields = (p: StoredContent, viewer?: string) => ({ id: p.id, userId: p.userId, userName: ctx.users.find(u => u.id === p.userId)?.username || 'User', userAvatar: ctx.users.find(u => u.id === p.userId)?.avatar || avatar,
     content: p.content, timestamp: p.timestamp, likes: 0, status: p.status || 'PENDING', approvedAt: p.approvedAt,
     ...(viewer === p.userId ? { moderationReason: p.moderationReason } : {}) });
   const postView = (p: StoredContent, viewer?: string): Post => ({ ...fields(p, viewer), comments: ctx.socialComments.filter(c => c.postId === p.id && allowed(c)).length });

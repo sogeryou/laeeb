@@ -14,13 +14,15 @@ import { resolveOrderContext } from '../lib/resolveOrderContext';
 import { useSocial } from '../hooks/useSocial';
 import { useOrders } from '../hooks/useOrders';
 import { useNotifications } from '../hooks/useNotifications';
+import { useAccountProfile } from '../hooks/useAccountProfile';
+import { usePeerIdentity } from '../hooks/usePeerIdentity';
 import { resolveNotificationTarget } from '../components/notifications/target';
 import type { AppNotification } from '@shared/notifications';
 import { useCompanionApplication } from '../hooks/useCompanionApplication';
 import { refreshApplicationOwnerSession } from '../components/application/approvedSession';
 import { usePublicCompanionProfile } from '../hooks/usePublicCompanionProfile';
 import { blocksCompanionCheckout, toIMOrder } from '../services/orderPresentation';
-import { AUTH_SESSION_EVENT, restoreSession as restoreAuthSession, storeSession, endSession, refreshSession } from '../features/auth/session';
+import { AUTH_SESSION_EVENT, restoreSession as restoreAuthSession, storeSession, endSession, refreshSession, publishProfileUser } from '../features/auth/session';
 import { navigateAuth, takeReturn } from '../features/auth/routing';
 
 export function useAppState() {
@@ -387,7 +389,11 @@ export function useAppState() {
     discount: ''
   });
   const [selectedEPal, setSelectedEPal] = useState<EPal | null>(null);
-  const publicProfile = usePublicCompanionProfile(currentView, selectedEPal, setSelectedEPal, authUser?.id);
+  const peerIdentity = usePeerIdentity(currentView, selectedEPal, setSelectedEPal, authToken, authUser?.id);
+  const companionPublicProfile = usePublicCompanionProfile(currentView, selectedEPal, setSelectedEPal, authUser?.id);
+  const publicProfile = selectedEPal?.userId === selectedEPal?.id && selectedEPal?.services === undefined ? peerIdentity : companionPublicProfile;
+  const accountProfile = useAccountProfile(authToken, authUser?.id, Boolean(authUser && (authUser.profileComplete || authUser.role === 'ADMIN')),
+    currentView === 'SETTINGS_EDIT_PROFILE', publishProfileUser);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showGiftPanel, setShowGiftPanel] = useState(false);
   const [selectedGiftId, setSelectedGiftId] = useState<number | null>(0);
@@ -890,7 +896,7 @@ export function useAppState() {
     handleSendAuthEmailCode, handleAuthSubmit, finishAuthSession, handleRecharge,
     selectedCategory, setSelectedCategory, searchQuery, setSearchQuery, selectedGame, setSelectedGame,
     selectedServiceCategory, setSelectedServiceCategory, applicationDetails, setApplicationDetails,
-    selectedEPal, setSelectedEPal, publicProfile, selectedPost, setSelectedPost, showGiftPanel, setShowGiftPanel,
+    selectedEPal, setSelectedEPal, publicProfile, accountProfile, selectedPost, setSelectedPost, showGiftPanel, setShowGiftPanel,
     selectedGiftId, setSelectedGiftId, giftQuantity, setGiftQuantity, showQuantitySelector, setShowQuantitySelector,
     userCoins, setUserCoins, userDiamonds, setUserDiamonds, withdrawAmount, setWithdrawAmount,
     withdrawAddress, setWithdrawAddress, withdrawSubmitting, setWithdrawSubmitting,

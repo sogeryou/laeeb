@@ -33,6 +33,7 @@ export type AuthUser = {
   adminRoleTemplate?: string;
   permissions: string[];
   avatar?: string;
+  bio?: string;
   gender?: 'F' | 'M' | 'U';
   profileComplete: boolean;
   accountStatus: 'ACTIVE' | 'FROZEN' | 'RISK_HOLD';

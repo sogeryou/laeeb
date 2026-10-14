@@ -51,6 +51,7 @@ import {
 import type { AppContext } from './app/context.js';
 import { legacyHashPassword as hashPassword, loadState, normalizeUserPassword, saveState } from './state/jsonState.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerAccountProfileRoutes } from './account/profile.js';
 import { registerBusinessRoutes } from './routes/business.js';
 import { registerHomeExposure } from './routes/homeExposure.js';
 import { registerLevelInitialization } from './player-center/officialLevel.js';
@@ -552,6 +553,7 @@ async function startServer() {
   };
 
   registerAuthRoutes(app, appContext);
+  registerAccountProfileRoutes(app, appContext);
   registerBusinessRoutes(app, appContext);
   registerNotificationRoutes(app, appContext);
   registerHomeExposure(app, appContext);

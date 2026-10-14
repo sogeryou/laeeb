@@ -35,7 +35,7 @@ export function profileComplete(user: UserEntity) {
 }
 export function toAuthUser(user: UserEntity | undefined): AuthUser | null {
   if (!user) return null;
-  return { id: user.id, username: user.username, email: user.email, role: user.role, adminRoleTemplate: user.adminRoleTemplate, permissions: user.permissions || [], gender: user.gender, avatar: user.avatar, tags: user.tags || [], profileComplete: profileComplete(user), accountStatus: user.accountStatus || 'ACTIVE' };
+  return { id: user.id, username: user.username, email: user.email, role: user.role, adminRoleTemplate: user.adminRoleTemplate, permissions: user.permissions || [], gender: user.gender, avatar: user.avatar, bio: user.bio, tags: user.tags || [], profileComplete: profileComplete(user), accountStatus: user.accountStatus || 'ACTIVE' };
 }
 export function systemAvatarUrl(id: string) {
   return (SYSTEM_AVATAR_IDS as readonly string[]).includes(id) ? `/api/auth/avatars/system/${id}.svg` : null;

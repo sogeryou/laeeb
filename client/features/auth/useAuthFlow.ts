@@ -5,12 +5,14 @@ import { useApp } from '../../app/AppContext';
 import { authApi, AuthApiError } from './api';
 import { authCopy, errorCopy } from './copy';
 import { navigateAuth, type AuthStep } from './routing';
-import { storeSession } from './session';
+import { profileIdentityReadGuard, publishProfileUser, storeSession } from './session';
+import { BUSINESS_TOKEN_KEY } from '../../router/routes';
 import { authPresentation } from './config';
 
 /** Step state and side effects live here; components are replaceable without changing the HTTP contract. */
 export function useAuthFlow(step: AuthStep) {
   const app = useApp();
+  const liveApp = useRef(app); liveApp.current = app;
   const language = app.locale === 'ar' ? 'ar' : 'en';
   const c = authCopy[language];
   const [config, setConfig] = useState<AuthConfig | null>(null);
@@ -110,13 +112,17 @@ export function useAuthFlow(step: AuthStep) {
   const profileValid = !!avatar && !!gender && !!consent && validBirthDate && isAuthNicknameValid(username);
   const completeProfile = () => run(async () => {
     if (!profileValid || !config) return;
+    const ownerId = app.authUser?.id || null;
+    const identityIsCurrent = profileIdentityReadGuard();
+    const isCurrent = () => mounted.current && identityIsCurrent() && (liveApp.current.authUser?.id || null) === ownerId;
     const profile = { username: username.trim(), gender: gender as 'F' | 'M' | 'U', birthDate, avatar: avatar!, acceptedTerms: true as const, termsVersion: config.termsVersion, privacyVersion: config.privacyVersion };
     if (app.authToken && app.authUser) {
       const user = await authApi.completeProfile(profile, app.authToken);
-      storeSession({ token: app.authToken, user });
+      if (!isCurrent() || !publishProfileUser(user, isCurrent)) return;
     } else {
       if (!grant || grant.expiresAt <= Date.now()) throw new AuthApiError('AUTH_GRANT_EXPIRED', 401);
       const session = await authApi.register({ ...profile, registrationToken: grant.token });
+      if (!isCurrent()) return;
       storeSession(session); setGrant(null);
     }
     setBirthDate(''); enter('interests');
@@ -131,8 +137,13 @@ export function useAuthFlow(step: AuthStep) {
   };
   const finish = (skip = false) => run(async () => {
     if (!app.authToken || !app.authUser) return;
+    const ownerId = app.authUser.id, identityIsCurrent = profileIdentityReadGuard();
     if (!skip) await authApi.preferences(tags, app.authToken);
-    app.finishAuthSession({ token: app.authToken, user: { ...app.authUser, tags: skip ? app.authUser.tags : tags } }, false);
+    if (!mounted.current || !identityIsCurrent() || liveApp.current.authUser?.id !== ownerId) return;
+    const token = localStorage.getItem(BUSINESS_TOKEN_KEY);
+    if (!token) return;
+    const user = liveApp.current.authUser;
+    liveApp.current.finishAuthSession({ token, user: { ...user, tags: skip ? user.tags : tags } }, false);
   });
   const toggleTag = (id: string) => {
     setError('');

@@ -19,7 +19,7 @@ export function registerSocialRoutes(app: express.Application, ctx: AppContext) 
   const pair = (m: StoredMessage, a: string, b: string) => (m.senderId === a && m.receiverId === b) || (m.senderId === b && m.receiverId === a);
   const person = (id: string): EPal => {
     const user = ctx.users.find(u => u.id === id), companion = ctx.companions.find(c => c.userId === id);
-    return { id: companion?.id || id, userId: id, name: user?.username || 'User', avatarUrl: avatar,
+    return { id: companion?.id || id, userId: id, name: user?.username || 'User', avatarUrl: user?.avatar || avatar, bio: user?.bio ?? companion?.intro ?? '',
       rating: 0, orderCount: '0', price: companion?.hourlyRate || 0, game: companion?.gameName || '', tags: [] };
   };
   app.use('/api/social', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });

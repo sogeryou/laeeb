@@ -81,6 +81,7 @@ export type PersistedState = {
     gender?: 'M' | 'F' | 'U';
     birthDate?: string;
     avatar?: string;
+    bio?: string;
     tags?: string[];
     consent?: { termsVersion: string; privacyVersion: string; acceptedAt: number };
     sessionVersion?: number;

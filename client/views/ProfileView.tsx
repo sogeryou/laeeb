@@ -243,6 +243,8 @@ const {
                     </div>
                 </GlassCard>
 
+                {selectedEPal.bio && <p className="text-sm text-gray-300 whitespace-pre-wrap [overflow-wrap:anywhere]">{selectedEPal.bio}</p>}
+
                 {/* Profile Tabs */}
                 <div className="flex justify-between items-center px-2 py-4 border-b border-white/5 sticky top-0 bg-[#0f071a]/80 backdrop-blur-xl z-40 -mx-6 px-8">
                   {[

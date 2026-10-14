@@ -1,5 +1,5 @@
 import { businessApi, type AuthSession } from '../../services/businessApi';
-import { storeSession } from '../../features/auth/session';
+import { profileIdentityReadGuard, storeSession } from '../../features/auth/session';
 
 export async function refreshApplicationOwnerSession(
   token: string,
@@ -8,8 +8,9 @@ export async function refreshApplicationOwnerSession(
   expectedRole: 'USER' | 'PLAYER',
   save: (session: Pick<AuthSession, 'token' | 'user'>) => void = storeSession,
 ) {
+  const identityIsCurrent = profileIdentityReadGuard();
   const user = await businessApi.getSession(token);
-  if (!isCurrent() || user.id !== ownerId || user.role !== expectedRole) return false;
+  if (!isCurrent() || !identityIsCurrent() || user.id !== ownerId || user.role !== expectedRole) return false;
   save({ token, user });
   return true;
 }

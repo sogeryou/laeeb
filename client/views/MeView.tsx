@@ -188,6 +188,7 @@ const {
                     <div className="flex items-center gap-2">
                       <h1 className="text-xl font-black text-white truncate">{authUser?.username || '—'}</h1>
                     </div>
+                    {authUser?.bio && <p className="mt-2 text-xs text-gray-400 whitespace-pre-wrap [overflow-wrap:anywhere]">{authUser.bio}</p>}
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-bold">
                         <span className="bg-white/5 px-2 py-0.5 rounded border border-white/10">ID: {authUser?.id || '—'}</span>

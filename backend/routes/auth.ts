@@ -226,7 +226,13 @@ export function registerAuthRoutes(app: express.Application, ctx: AppContext) {
     } catch { throw new AuthError(400, 'AUTH_AVATAR_INVALID', 'Upload a valid square PNG from 64 to 2048 pixels'); }
     const id = randomBytes(24).toString('hex'), url = `/api/auth/avatars/uploads/${id}.png`;
     await fs.mkdir(avatarDir, { recursive: true }); await fs.writeFile(path.join(avatarDir, `${id}.png`), output, { flag: 'wx', mode: 0o600 });
-    state.uploads[id] = { owner, url, createdAt: Date.now() }; ctx.persistState(); res.json({ avatar: { type: 'upload', value: id }, url });
+    state.uploads[id] = { owner, url, createdAt: Date.now() };
+    try { ctx.persistState(); } catch (error) {
+      delete state.uploads[id];
+      await fs.unlink(path.join(avatarDir, `${id}.png`));
+      throw error;
+    }
+    res.json({ avatar: { type: 'upload', value: id }, url });
   }));
   app.post('/api/auth/password/reset', route(async (req, res) => {
     const body = z.object({ resetToken: z.string().min(20).max(256), password: z.string().refine(acceptableNewPassword, 'Use 15–128 characters and avoid common passwords') }).parse(req.body);
