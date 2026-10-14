@@ -52,7 +52,7 @@ Files: guarded `tests/e2e/account-profile.spec.ts`, `docs/account-profile-accept
 - [x] Start fresh disposable loopback fixture on 3018; run actual visible profile save/upload/retry/reload and other-account/public/chat inspection.
 - [x] Capture EN/AR at 320/375/1440px, check headings/text fit, actual bitmap avatar pixels and no overlapping controls. Check unchanged business/role/service data.
 - [x] Run full tests, both type checks, build and whitespace; independent review and regression fixes; verify staged source equals tested snapshot.
-- [ ] Explicitly commit approved files only and publish to `sogeryou/laeeb` / `codex/independent-auth` with expected-head protection, exact tree comparison and native fetch confirmation; preserve unrelated files.
+- [x] Explicitly commit approved files only and publish to `sogeryou/laeeb` / `codex/independent-auth` with expected-head protection, exact tree comparison and native fetch confirmation; preserve unrelated files.
 
 ```sh
 node_modules/.bin/vitest run --reporter=dot --maxWorkers=1 --minWorkers=1
