@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback, type MouseEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type MouseEvent, type SetStateAction } from 'react';
 import {
   Category, Game, EPal, EPalServiceVariant, Coupon, Playlink, Post, Message, ChatSession, IMOrder,
   Wallet as WalletType, RechargePackage, WalletTransaction,
@@ -24,11 +24,45 @@ import { usePublicCompanionProfile } from '../hooks/usePublicCompanionProfile';
 import { blocksCompanionCheckout, toIMOrder } from '../services/orderPresentation';
 import { AUTH_SESSION_EVENT, restoreSession as restoreAuthSession, storeSession, endSession, refreshSession, publishProfileUser } from '../features/auth/session';
 import { navigateAuth, takeReturn } from '../features/auth/routing';
+import { DEFAULT_GAME_DISCOVERY_QUERY } from '@shared/gameDiscovery';
+import { z } from 'zod';
+import { gameDiscoveryCopy } from '../components/game-discovery/copy';
+
+const publicReturnProfile = z.object({
+  id: z.string().min(1), userId: z.string().min(1), name: z.string().min(1), avatarUrl: z.string(),
+  game: z.string().min(1), price: z.number().finite().nonnegative(), rating: z.number().finite().min(0).max(5),
+  orderCount: z.string(), tags: z.array(z.string()), onlineStatus: z.enum(['Online', 'Busy', 'Offline']), bio: z.string().optional(),
+  services: z.array(z.object({
+    id: z.string().min(1), name: z.string().min(1), icon: z.string(), posterUrl: z.string(), description: z.string(),
+    rating: z.number().finite().min(0).max(5), orderCount: z.string(), screenshots: z.array(z.string()),
+    variants: z.array(z.object({ name: z.string(), price: z.number().finite().nonnegative(), unit: z.string().min(1) })).min(1),
+  })).min(1),
+  reviews: z.array(z.object({
+    id: z.string(), userName: z.string(), userAvatar: z.string(), rating: z.number().finite().min(1).max(5),
+    comment: z.string(), date: z.string(), timestamp: z.number().finite(), tags: z.array(z.string()),
+  })).optional(),
+});
+
+const emptyGameFilters = () => ({
+  status: DEFAULT_GAME_DISCOVERY_QUERY.status,
+  gender: 'ALL' as 'ALL' | 'Male' | 'Female' | 'Other',
+  priceRange: [DEFAULT_GAME_DISCOVERY_QUERY.minPrice, DEFAULT_GAME_DISCOVERY_QUERY.maxPrice] as [number, number],
+  server: 'ALL', platform: 'ALL', rank: 'ALL',
+});
 
 export function useAppState() {
   const deviceId = useDeviceId();
   const { locale, setLocale, t, supportedLocales, getLocaleLabel } = useI18n();
-  const [currentView, setCurrentView] = useState<View>('HOME');
+  const navigationVersion = useRef(0);
+  const [currentView, setCurrentViewState] = useState<View>('HOME');
+  const setCurrentView = useCallback((view: SetStateAction<View>) => {
+    navigationVersion.current++;
+    setCurrentViewState(view);
+  }, []);
+  const mounted = useRef(false);
+  const sessionVersion = useRef(0);
+  const authReturn = useRef<{ token: string; owner: string; version: number; promise: Promise<void> } | null>(null);
+  const liveNavigateTo = useRef<(view: View, data?: any) => void>(() => {});
   const [wallet, setWallet] = useState<WalletType | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [rechargePackages, setRechargePackages] = useState<RechargePackage[]>([]);
@@ -123,10 +157,13 @@ export function useAppState() {
   }, [fetchPackages]);
 
   useEffect(() => {
+    mounted.current = true;
     let cancelled = false;
+    const onNavigation = () => { navigationVersion.current++; };
     const onSession = (event: Event) => {
       const session = (event as CustomEvent).detail;
-      if (authUserIdRef.current !== (session?.user?.id || null)) { setWallet(null); setTransactions([]); }
+      if (!session || authUserIdRef.current !== session.user.id || authTokenRef.current !== session.token) sessionVersion.current++;
+      if (authUserIdRef.current !== (session?.user?.id || null)) { setWallet(null); setTransactions([]); resetApplicationDraft(); }
       authUserIdRef.current = session?.user?.id || null;
       setIsAuthenticated(Boolean(session)); isAuthenticatedRef.current = Boolean(session);
       setAuthToken(session?.token || null); authTokenRef.current = session?.token || null;
@@ -134,6 +171,7 @@ export function useAppState() {
       if (!session) { setWallet(null); setTransactions([]); }
     };
     window.addEventListener(AUTH_SESSION_EVENT, onSession);
+    window.addEventListener('popstate', onNavigation);
     const restoreSession = async () => {
       try {
         const session = await restoreAuthSession();
@@ -144,7 +182,10 @@ export function useAppState() {
     void restoreSession();
     return () => {
       cancelled = true;
+      mounted.current = false;
+      sessionVersion.current++;
       window.removeEventListener(AUTH_SESSION_EVENT, onSession);
+      window.removeEventListener('popstate', onNavigation);
     };
   }, []);
 
@@ -228,6 +269,7 @@ export function useAppState() {
   };
 
   const handleLogout = async () => {
+    sessionVersion.current++;
     try { await endSession(); } catch { /* Local state is already cleared. */ }
     localStorage.removeItem(BUSINESS_TOKEN_KEY);
     sessionStorage.removeItem(BUSINESS_UI_AUTH_KEY);
@@ -251,6 +293,11 @@ export function useAppState() {
     session: Awaited<ReturnType<typeof businessApi.login>>,
     wantsAdmin: boolean,
   ) => {
+    // AuthFlow may reenter while this public read is still pending, even after user navigation.
+    const resolving = authReturn.current;
+    if (!wantsAdmin && resolving && resolving.token === session.token && resolving.owner === session.user.id
+      && resolving.version === sessionVersion.current
+      && authTokenRef.current === session.token && authUserIdRef.current === session.user.id) return resolving.promise;
     if (wantsAdmin && session.user.role !== 'ADMIN') {
       adminLoginIntentRef.current = false;
       setAuthStatus(t('admin.login.notAdmin'));
@@ -280,10 +327,35 @@ export function useAppState() {
     if (pending) {
       navigateTo(pending.view, pending.data);
     } else if (remembered) {
-      const epal = EPALS.find(item => item.id === remembered.entityId);
       const post = POSTS.find(item => item.id === remembered.entityId);
       const game = GAMES.find(item => item.id === remembered.entityId);
-      if (['PROFILE','IM_DETAIL','ORDER_CONFIRM'].includes(remembered.view) && epal) navigateTo(remembered.view, remembered.view === 'ORDER_CONFIRM' ? { epal } : epal);
+      if (['PROFILE','IM_DETAIL','ORDER_CONFIRM'].includes(remembered.view)) {
+        const version = sessionVersion.current, navigation = navigationVersion.current;
+        const current = () => mounted.current && sessionVersion.current === version && navigationVersion.current === navigation
+          && authTokenRef.current === session.token && authUserIdRef.current === session.user.id
+          && localStorage.getItem(BUSINESS_TOKEN_KEY) === session.token;
+        const operation = { token: session.token, owner: session.user.id, version, promise: Promise.resolve() };
+        operation.promise = Promise.resolve().then(async () => {
+          try {
+            if (!current()) return;
+            if (!remembered.entityId) throw Error('PROFILE_UNAVAILABLE');
+            const parsed = publicReturnProfile.safeParse(await businessApi.getPublicCompanionProfile(remembered.entityId));
+            if (!current()) return;
+            if (!parsed.success) throw Error('PROFILE_UNAVAILABLE');
+            const epal = parsed.data as EPal, primary = epal.services![0], variant = primary.variants[0];
+            if (epal.id !== remembered.entityId || primary.id !== epal.id || variant.unit !== 'hr' || variant.price !== epal.price
+              || new Set(epal.services!.map(service => service.id)).size !== epal.services!.length
+              || remembered.view === 'ORDER_CONFIRM' && (epal.onlineStatus !== 'Online' || epal.userId === session.user.id)) throw Error('PROFILE_UNAVAILABLE');
+            liveNavigateTo.current(remembered.view, remembered.view === 'ORDER_CONFIRM' ? { epal, serviceId: primary.id } : epal);
+          } catch {
+            if (current()) notify(gameDiscoveryCopy(locale).unavailable);
+          } finally {
+            if (authReturn.current === operation) authReturn.current = null;
+          }
+        });
+        authReturn.current = operation;
+        return operation.promise;
+      }
       else if (remembered.view === 'POST_DETAIL' && post) navigateTo('POST_DETAIL', { post });
       else if (remembered.view === 'GAME_DETAIL' && game) navigateTo('GAME_DETAIL', game);
       else if (!['PROFILE','IM_DETAIL','ORDER_CONFIRM','POST_DETAIL','GAME_DETAIL'].includes(remembered.view)) navigateTo(remembered.view);
@@ -380,6 +452,8 @@ export function useAppState() {
   const [selectedCategory, setSelectedCategory] = useState<Category>('GAMES');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  // Public route identity must outlive private application-draft resets, including profile -> Back.
+  const [discoveryGame, setDiscoveryGame] = useState<Game | null>(null);
   const [selectedServiceCategory, setSelectedServiceCategory] = useState<string | null>(null);
   const [applicationDetails, setApplicationDetails] = useState({
     rank: '',
@@ -504,7 +578,7 @@ export function useAppState() {
   const [walletTab, setWalletTab] = useState<'ALL' | 'RECHARGE' | 'ORDER'>('ALL');
   const [walletDate, setWalletDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [selectedApplyGameCategory, setSelectedApplyGameCategory] = useState<string>('GAMES');
-  useEffect(() => {
+  const resetApplicationDraft = useCallback(() => {
     setPlayerApplicationStep(1);
     setApplyGameSearchQuery('');
     setSelectedApplyGameCategory('GAMES');
@@ -512,20 +586,31 @@ export function useAppState() {
     setSelectedGame(null);
     setSelectedServiceCategory(null);
     setApplicationDetails({ rank: '', platform: '', style: '', price: '', discount: '' });
-  }, [authUser?.id]);
+  }, []);
+  useEffect(resetApplicationDraft, [authUser?.id, resetApplicationDraft]);
   const [epalSortBy, setEpalSortBy] = useState<'DEFAULT' | 'ORDERS' | 'SCORE'>('DEFAULT');
-  const [epalFilters, setEpalFilters] = useState({
-    status: 'ALL' as 'ALL' | 'ONLINE',
-    gender: 'ALL' as 'ALL' | 'Male' | 'Female',
-    priceRange: [0, 100] as [number, number],
-    server: 'ALL' as string,
-    platform: 'ALL' as string,
-    rank: 'ALL' as string,
-  });
+  const [epalFilters, setEpalFilters] = useState(emptyGameFilters);
   const [showEpalFilterModal, setShowEpalFilterModal] = useState(false);
   const [showRankSelectorModal, setShowRankSelectorModal] = useState(false);
   const [showServerSelectorModal, setShowServerSelectorModal] = useState(false);
   const [showPlatformSelectorModal, setShowPlatformSelectorModal] = useState(false);
+  const resetGameFilters = useCallback(() => {
+    setEpalFilters(emptyGameFilters()); setEpalSortBy('DEFAULT'); setShowEpalFilterModal(false);
+    setShowRankSelectorModal(false); setShowServerSelectorModal(false); setShowPlatformSelectorModal(false);
+  }, []);
+  const discoveryOwner = useRef(authUser?.id);
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const session = (event as CustomEvent).detail, owner = session?.user?.id;
+      if (!session?.token || owner !== discoveryOwner.current) resetGameFilters();
+      discoveryOwner.current = owner;
+    };
+    window.addEventListener(AUTH_SESSION_EVENT, changed);
+    return () => window.removeEventListener(AUTH_SESSION_EVENT, changed);
+  }, [resetGameFilters]);
+  useEffect(() => {
+    if (discoveryOwner.current !== authUser?.id) { discoveryOwner.current = authUser?.id; resetGameFilters(); }
+  }, [authUser?.id, resetGameFilters]);
   const [isImSearchExpanded, setIsImSearchExpanded] = useState(false);
   const imOrders = useMemo(() => orders.items.map(toIMOrder), [orders.items]);
   const setImOrders = orders.refresh;
@@ -703,6 +788,7 @@ export function useAppState() {
   };
 
   const navigateTo = (view: View, data?: any) => {
+    navigationVersion.current++;
     const requiresAuth = viewRequiresAuth(view, data);
     if (requiresAuth && !isAuthenticatedRef.current) {
       pendingNavigationRef.current = { view, data };
@@ -724,7 +810,11 @@ export function useAppState() {
       setSelectedPost(data.post);
       setFocusCommentInput(data.focusInput || false);
     }
-    if (view === 'GAME_DETAIL') setSelectedGame(data);
+    if (view !== 'GAME_DETAIL') setShowEpalFilterModal(false);
+    if (view === 'GAME_DETAIL') {
+      if (discoveryGame?.id !== data?.id) resetGameFilters();
+      setDiscoveryGame(data);
+    }
     if (view === 'PROFILE') {
       setSelectedEPal(data);
       if (data.services && data.services.length > 0) {
@@ -785,9 +875,11 @@ export function useAppState() {
     setCurrentView(view);
     window.scrollTo(0, 0);
   };
+  liveNavigateTo.current = navigateTo;
 
 
   const handleBack = () => {
+    navigationVersion.current++;
     // Reset focus state when going back
     setFocusCommentInput(false);
     setShowImServiceCards(false);
@@ -894,7 +986,7 @@ export function useAppState() {
     fetchWallet, fetchTransactions, fetchPackages, fetchCompanionRankings, sortedRankings,
     openAuthModal, openAdminAuthModal, notify, requireAuthAction, handleLogout,
     handleSendAuthEmailCode, handleAuthSubmit, finishAuthSession, handleRecharge,
-    selectedCategory, setSelectedCategory, searchQuery, setSearchQuery, selectedGame, setSelectedGame,
+    selectedCategory, setSelectedCategory, searchQuery, setSearchQuery, selectedGame: currentView === 'GAME_DETAIL' ? discoveryGame : selectedGame, setSelectedGame,
     selectedServiceCategory, setSelectedServiceCategory, applicationDetails, setApplicationDetails,
     selectedEPal, setSelectedEPal, publicProfile, accountProfile, selectedPost, setSelectedPost, showGiftPanel, setShowGiftPanel,
     selectedGiftId, setSelectedGiftId, giftQuantity, setGiftQuantity, showQuantitySelector, setShowQuantitySelector,

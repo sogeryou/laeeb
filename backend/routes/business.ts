@@ -15,6 +15,7 @@ import { toBusinessOrder } from '../orders/presentation.js';
 import { OrderSaveError, persistOrderMutation } from '../orders/persistence.js';
 import { registerCompanionProfileRoutes } from '../companions/profile.js';
 import { registerCompanionApplicationRoutes } from '../companions/applications.js';
+import { registerGameDiscoveryRoutes } from '../companions/discovery.js';
 
 const MODERATION_BLOCKLIST = ['诈骗', 'fraud', 'scam', '色情', 'porn'];
 const publicCompanion = ({ application: _application, ...companion }: CompanionEntity) => companion;
@@ -22,6 +23,7 @@ const publicCompanion = ({ application: _application, ...companion }: CompanionE
 export function registerBusinessRoutes(app: express.Application, ctx: AppContext) {
   registerCompanionProfileRoutes(app, ctx);
   registerCompanionApplicationRoutes(app, ctx);
+  registerGameDiscoveryRoutes(app, ctx);
   const {
     authMiddleware,
     companions,

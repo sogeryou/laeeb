@@ -49,6 +49,7 @@ export interface CompanionRanking {
 
 import { apiUrl, readJsonResponse } from '@shared/apiClient';
 import type { AccountProfile, UpdateAccountProfile } from '@shared/accountProfile';
+import type { GameDiscoveryPage, GameDiscoveryQuery } from '@shared/gameDiscovery';
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH';
 
@@ -65,6 +66,10 @@ async function request<T>(path: string, method: HttpMethod, body?: unknown, toke
 }
 
 export const businessApi = {
+  getGameCompanions(gameId: string, filters: GameDiscoveryQuery, page = 1, limit = 20) {
+    const query = new URLSearchParams(Object.entries({ ...filters, page, limit }).map(([key, value]) => [key, String(value)]));
+    return request<GameDiscoveryPage>(`/api/games/${encodeURIComponent(gameId)}/companions?${query}`, 'GET');
+  },
   getAccountProfile(token: string) {
     return request<AccountProfile>('/api/account/profile', 'GET', undefined, token);
   },
