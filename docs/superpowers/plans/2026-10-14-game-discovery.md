@@ -75,7 +75,7 @@ return request<GameDiscoveryPage>(`/api/games/${encodeURIComponent(gameId)}/comp
 - [x] Require `E2E_GAME_DISCOVERY_FIXTURE=1` and exact loopback 3020/root in browser tests. Perform any business writes only through visible UI; inspect via GET. Verify catalog -> real game list -> filters/reset -> profile -> chat -> checkout quote; do not pay a real charge. Cover empty/error/retry and load-more de-duplication.
 - [x] Capture stable EN/AR at 320/375/1440px after motion/repaint, check image pixels/load, text/labels/buttons and no horizontal overflow. Verify self/busy/offline order actions, unchanged historical orders/reviews/balances/roles/services and no false notifications.
 - [x] Run full Vitest, both TypeScript checks, Vite build, whitespace and exact source/snapshot comparison. Complete independent final review, reproduce/fix/rerun concrete findings and record limitations honestly.
-- [ ] Commit only explicit approved files and deliver with expected remote HEAD / non-force update / exact tree match / native fetch confirmation. Add actual delivery SHA receipt; leave unrelated user files and old previews intact.
+- [x] Commit only explicit approved files and deliver with expected remote HEAD / non-force update / exact tree match / native fetch confirmation. Add actual delivery SHA receipt; leave unrelated user files and old previews intact.
 
 ```sh
 node_modules/.bin/vitest run --reporter=dot --maxWorkers=1 --minWorkers=1
