@@ -1,8 +1,6 @@
 import { useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
-import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Plus } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Plus } from 'lucide-react';
 import { AUTH_PASSWORD_MAX_LENGTH, AUTH_PASSWORD_MIN_LENGTH } from '@shared/auth';
-import { authPresentation } from './config';
-import { tagLabels } from './copy';
 import type { AuthFlow } from './useAuthFlow';
 
 export function AuthField({ label, hint, id, ...input }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }) {
@@ -54,14 +52,6 @@ export function ProfileStep({ flow, openAvatar, openLegal }: { flow: AuthFlow; o
     <AuthField id="auth-birthday" label={c.birthday} type="date" value={flow.birthDate} onChange={e => flow.setBirthDate(e.target.value)} autoComplete="bday" max={flow.config?.maxBirthDate} dir="ltr" required aria-invalid={!!flow.birthDate && !flow.validBirthDate} hint={flow.birthDate && !flow.validBirthDate ? c.ageError : c.birthdayHint} />
     <div className="auth-consent"><input id="auth-consent" type="checkbox" aria-label={`${c.termsStart} ${c.terms} ${c.and} ${c.privacy}`} checked={flow.consent} onChange={e => flow.setConsent(e.target.checked)} required /><div><label htmlFor="auth-consent">{c.termsStart} </label><button type="button" onClick={() => openLegal('terms')}>{c.terms}</button><span> {c.and} </span><button type="button" onClick={() => openLegal('privacy')}>{c.privacy}</button>.</div></div>
     <AuthButton busy={flow.busy} disabled={!flow.profileValid || !flow.config}>{c.continue}</AuthButton>
-  </form>;
-}
-
-export function InterestsStep({ flow }: { flow: AuthFlow }) {
-  return <form onSubmit={submit(() => flow.finish())}>
-    {authPresentation.tagGroups.map(group => <section className="auth-tag-section" key={group.id}><h2>{flow.c[group.id as 'games' | 'vibes' | 'life']}</h2><div className="auth-tags">{group.tags.map(id => <button type="button" key={id} aria-pressed={flow.tags.includes(id)} disabled={flow.busy} onClick={() => flow.toggleTag(id)}>{flow.tags.includes(id) ? <Check size={15} /> : <Plus size={15} />}{tagLabels[id][flow.language === 'ar' ? 1 : 0]}</button>)}</div></section>)}
-    <div className="auth-tag-counter"><span>{flow.c.tagTip}</span><bdi>{flow.tags.length}/{authPresentation.maxTags}</bdi></div>
-    <AuthButton busy={flow.busy}>{flow.c.finish}</AuthButton><p className="auth-center"><button type="button" className="auth-text-button" disabled={flow.busy} onClick={() => flow.finish(true)}>{flow.c.skip}</button></p>
   </form>;
 }
 

@@ -252,15 +252,15 @@ describe('companion application client', () => {
     get.mockRestore();
   });
 
-  it('accepts valid cents and rejects excess decimals', () => {
-    expect(isValidApplicationPrice(4.56)).toBe(true);
-    expect(isValidApplicationPrice(8.03)).toBe(true);
+  it('accepts integer coins and rejects fractional prices', () => {
+    expect(isValidApplicationPrice(4.56)).toBe(false);
+    expect(isValidApplicationPrice(8)).toBe(true);
     expect(isValidApplicationPrice(8.031)).toBe(false);
   });
 
   it('carries legacy selection into the canonical wizard without applying discounts', () => {
-    const draft = legacyDetailsToDraft({ gameId: 'pubg', rank: '', mainPosition: '', server: '', platform: '', style: '', intro: '', coverIntro: '', serviceName: '', price: 0, unit: 'Game' }, 'pubg', 'Ranked Carry', { rank: 'Gold', platform: 'PC', style: 'Calm', price: '4.56', discount: '20' });
-    expect(draft).toMatchObject({ gameId: 'pubg', serviceName: 'Ranked Carry', rank: 'Gold', platform: 'PC', style: 'Calm', price: 4.56 });
+    const draft = legacyDetailsToDraft({ gameId: 'pubg', rank: '', mainPosition: '', server: '', platform: '', style: '', intro: '', coverIntro: '', serviceName: '', price: 0, unit: 'Game' }, 'pubg', 'Ranked Carry', { rank: 'Gold', platform: 'PC', style: 'Calm', price: '4', discount: '20' });
+    expect(draft).toMatchObject({ gameId: 'pubg', serviceName: 'Ranked Carry', rank: 'Gold', platform: 'PC', style: 'Calm', price: 4 });
     expect(applicationPayload(draft, 'PUBG', 'key')).not.toHaveProperty('discount');
   });
 

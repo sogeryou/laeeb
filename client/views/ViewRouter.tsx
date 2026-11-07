@@ -6,6 +6,7 @@ import { ViewOverlays } from './ViewOverlays';
 import { HomeView } from './HomeView';
 import { CommunitySelectorView } from './CommunitySelectorView';
 import { CommunityView } from './CommunityView';
+import { PostComposerView } from './PostComposerView';
 import { CategoryServicesView } from './CategoryServicesView';
 import { PostDetailView } from './PostDetailView';
 import { LegendListView } from './LegendListView';
@@ -48,6 +49,7 @@ export function ViewRouter() {
         {currentView === 'HOME' && <ViewGate><HomeView /></ViewGate>}
         {currentView === 'COMMUNITY_SELECTOR' && <ViewGate><CommunitySelectorView /></ViewGate>}
         {currentView === 'COMMUNITY' && <ViewGate><CommunityView /></ViewGate>}
+        {currentView === 'POST_CREATE' && <ViewGate><PostComposerView /></ViewGate>}
         {currentView === 'CATEGORY_SERVICES' && <ViewGate><CategoryServicesView /></ViewGate>}
         {currentView === 'POST_DETAIL' && selectedPost && <ViewGate><PostDetailView /></ViewGate>}
         {currentView === 'LEGEND_LIST' && <ViewGate><LegendListView /></ViewGate>}

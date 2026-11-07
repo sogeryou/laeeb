@@ -37,11 +37,11 @@ it('loads real fields and saves edited primary, extra and bio with stable IDs', 
   await change('Service name extra', 'Ranked climb');
   await click('Add New Service');
   await change('Service name new-id', 'Coaching');
-  await change('Service price new-id', '9.5');
+  await change('Service price new-id', '9');
   await click('Save Changes');
   expect(businessApi.updateManagedCompanionProfile).toHaveBeenCalledWith('token', { gameName: 'PUBG', intro: 'Duo sessions', hourlyRate: 8, updatedAt: 10, services: [
     { id: 'extra', name: 'Ranked climb', unitPrice: 7, unit: 'match' },
-    { id: 'new-id', name: 'Coaching', unitPrice: 9.5, unit: 'hr' },
+    { id: 'new-id', name: 'Coaching', unitPrice: 9, unit: 'hr' },
   ] });
   expect(app.handleBack).toHaveBeenCalledOnce();
   expect(button('Upload Cover Image').props.disabled).toBe(true);

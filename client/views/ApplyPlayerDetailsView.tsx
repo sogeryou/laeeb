@@ -197,7 +197,7 @@ const {
                     <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] px-2">{t('apply.detailsPricePerHour')}</p>
                     <div className="relative">
                       <input 
-                        type="number" 
+                        type="number" min="1" max="500" step="1" title="Enter a whole-number coin price from 1 to 500"
                         value={applicationDetails.price}
                         onChange={(e) => setApplicationDetails(prev => ({ ...prev, price: e.target.value }))}
                         placeholder="e.g. 5"

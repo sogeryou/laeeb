@@ -24,7 +24,7 @@ async function login(page: Page, email: string, id: string, currentLoginPage = f
   if (new URL(page.url()).pathname === '/auth/profile') {
     await page.getByRole('button', { name: 'Choose avatar', exact: true }).first().click(); await page.getByRole('button', { name: 'Choose avatar 1', exact: true }).click();
     await page.getByLabel('Rather not say', { exact: true }).check(); await page.getByLabel('Birthday', { exact: true }).fill('1995-01-01');
-    await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Continue', exact: true }).click(); await page.getByRole('button', { name: 'Skip for now', exact: true }).click();
+    await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Continue', exact: true }).click();
   }
   await expect(page).not.toHaveURL(/\/auth\//);
 }
@@ -55,6 +55,7 @@ test.describe('disposable game discovery', () => {
   test.skip(!enabled, 'E2E_GAME_DISCOVERY_FIXTURE=1 required'); test.beforeEach(({ baseURL }) => guard(baseURL));
   test('real pages, retry, primary-price filters, numeric sorts and exact game switching', async ({ page }) => {
     test.setTimeout(150000); await page.addInitScript(() => localStorage.setItem('le3eb_locale', 'en'));
+    await login(page, 'new0@local.test', 'preview-new-00');
     let failLoad = true, failMore = false;
     await page.route('**/api/games/val/companions?**', async route => {
       const query = new URL(route.request().url()).searchParams;
@@ -111,7 +112,7 @@ test.describe('disposable game discovery', () => {
       expect((await inspect<any>(page, '/api/notifications')).items).toEqual([]); expect(orderWrites).toEqual([]);
     } finally { await providerContext.close(); }
   });
-  test('guest booking and chat resume real companions after reloading login', async ({ page, browser, baseURL }) => {
+  test('root requires login and authenticated booking and chat survive reload and back', async ({ page, browser, baseURL }) => {
     test.setTimeout(150000);
     // Complete the disposable buyer through the UI before exercising returning-account login.
     await login(page, 'new0@local.test', 'preview-new-00');
@@ -119,45 +120,52 @@ test.describe('disposable game discovery', () => {
     for (const target of ['book', 'chat', 'chat-back'] as const) {
       const context = await browser.newContext({ baseURL });
       try {
-        const guest = await context.newPage();
-        await guest.addInitScript(() => localStorage.setItem('le3eb_locale', 'en'));
+        const member = await context.newPage();
+        await member.addInitScript(() => localStorage.setItem('le3eb_locale', 'en'));
         const writes: string[] = [];
-        guest.on('request', r => { if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/orders') writes.push(r.url()); });
-        await catalog(guest);
-        if (target === 'book') await guest.getByRole('button', { name: 'Book Local Duo 00', exact: true }).click();
+        member.on('request', r => { if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/orders') writes.push(r.url()); });
+        await member.goto('/'); await expect(member).toHaveURL(/\/auth\/login$/);
+        await expect(member.locator('nav.fixed')).toHaveCount(0);
+        await expect(member.locator('#game-discovery-page')).toHaveCount(0);
+        await expect(member.getByText('Tactical Duo', { exact: true })).toHaveCount(0);
+        await member.reload(); await expect(member).toHaveURL(/\/auth\/login$/);
+        await expect(member.locator('nav.fixed')).toHaveCount(0);
+        await login(member, 'new0@local.test', 'preview-new-00', true);
+        await member.reload(); await expect(member.locator('nav.fixed')).toBeVisible();
+        await catalog(member);
+        const resumed = member.waitForResponse(r => new URL(r.url()).pathname === (target === 'book' ? '/api/orders/quote' : '/api/social/messages/discovery-provider-00'));
+        if (target === 'book') await member.getByRole('button', { name: 'Book Local Duo 00', exact: true }).click();
         else {
-          await guest.getByRole('heading', { name: 'Local Duo 00', exact: true }).click();
-          await expect(guest.getByText('Disposable discovery fixture', { exact: true }).first()).toBeVisible();
-          await guest.getByRole('button', { name: 'Chat', exact: true }).click();
+          await member.getByRole('heading', { name: 'Local Duo 00', exact: true }).click();
+          await expect(member.getByText('Disposable discovery fixture', { exact: true }).first()).toBeVisible();
+          await member.getByRole('button', { name: 'Chat', exact: true }).click();
         }
-        await expect(guest).toHaveURL(/\/auth\/login$/);
-        if (target !== 'chat-back') await guest.reload();
-        const resumed = guest.waitForResponse(r => new URL(r.url()).pathname === (target === 'book' ? '/api/orders/quote' : '/api/social/messages/discovery-provider-00'));
-        await login(guest, 'new0@local.test', 'preview-new-00', true);
         expect((await resumed).ok()).toBe(true);
         if (target === 'book') {
-          expect(await (await resumed).json()).toMatchObject({ companionId: 'discovery-val-00', serviceId: 'discovery-val-00', unit: 'hr', quantity: 1, totalPrice: 8 });
-          await expect(guest.getByLabel('Quoted total', { exact: true })).toHaveText('8');
+          expect(await (await resumed).json()).toMatchObject({ companionId: 'discovery-val-00', serviceId: 'discovery-val-00', unit: 'hr', unitPrice: 8, quantity: 1, totalPrice: 8 });
+          await expect(member.getByLabel('Quoted total', { exact: true })).toHaveText('8');
         } else {
-          await expect(guest.getByRole('button', { name: 'Send message', exact: true })).toBeVisible();
+          await expect(member.getByRole('button', { name: 'Send message', exact: true })).toBeVisible();
           if (target === 'chat-back') {
-            await guest.locator('button:has(svg.lucide-arrow-left)').first().click();
-            await expect(guest.getByRole('button', { name: 'Chat', exact: true })).toBeVisible();
-            const restoredGame = response(guest, url => url.pathname === '/api/games/val/companions');
-            await guest.locator('button:has(svg.lucide-arrow-left)').first().click();
+            await member.locator('button:has(svg.lucide-arrow-left)').first().click();
+            await expect(member.getByRole('button', { name: 'Chat', exact: true })).toBeVisible();
+            const restoredGame = response(member, url => url.pathname === '/api/games/val/companions');
+            await member.locator('button:has(svg.lucide-arrow-left)').first().click();
             expect((await restoredGame).ok()).toBe(true);
-            await expect(guest.getByRole('heading', { level: 1 })).toHaveText('Valorant');
-            await expect(guest.getByRole('heading', { level: 4 })).toHaveCount(20);
+            await expect(member.getByRole('heading', { level: 1 })).toHaveText('Valorant');
+            await expect(member.getByRole('heading', { level: 4 })).toHaveCount(20);
           }
         }
-        expect(await inspect(guest, '/api/orders')).toEqual(historical);
-        expect((await inspect<any>(guest, '/api/wallet/balance')).balance).toBe(500);
+        expect(await inspect(member, '/api/orders')).toEqual(historical);
+        expect((await inspect<any>(member, '/api/wallet/balance')).balance).toBe(500);
+        expect((await inspect<AuthUser>(member, '/api/auth/session')).role).toBe('USER');
         expect(writes).toEqual([]);
       } finally { await context.close(); }
     }
   });
   test('EN and AR game cards and filters fit mobile and desktop with real loaded assets', async ({ page }, info) => {
     test.setTimeout(150000); await page.addInitScript(() => { if (!localStorage.getItem('le3eb_locale')) localStorage.setItem('le3eb_locale', 'en'); });
+    await login(page, 'new0@local.test', 'preview-new-00');
     for (const ar of [false, true]) {
       await page.evaluate(locale => localStorage.setItem('le3eb_locale', locale), ar ? 'ar' : 'en').catch(() => {});
       await catalog(page); await expect(page.locator('#game-discovery-page')).toHaveAttribute('dir', ar ? 'rtl' : 'ltr');

@@ -104,9 +104,50 @@ export const sanitizePersistedState = (s: PersistedState) => {
 };
 
 export const migrateState = (raw: unknown, isProduction = process.env.NODE_ENV === 'production'): PersistedState => {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error('Invalid storage snapshot root');
+  }
   const base = defaultState();
-  const parsed = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
-  const rawVersion = typeof parsed.schemaVersion === 'number' ? parsed.schemaVersion : 1;
+  const parsed = raw as Record<string, unknown>;
+  const rawVersion = parsed.schemaVersion === undefined ? 1 : parsed.schemaVersion;
+  if (!Number.isInteger(rawVersion) || (rawVersion as number) < 1 || (rawVersion as number) > STORAGE_SCHEMA_VERSION) {
+    throw new Error(`Unsupported storage schema version: ${String(rawVersion)}`);
+  }
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+  const arrayFields = [
+    'notifications', 'socialMessages', 'socialPosts', 'socialComments', 'levelReviews',
+    'levelEvents', 'levelSettlements', 'rechargeOrders', 'walletTransactions',
+    'users', 'companions', 'orders', 'reviews', 'riskEvents', 'auditLogs',
+    'withdrawalRequests', 'moderationReports', 'couponTemplates', 'couponGrants',
+    'deviceBans', 'exposureLogs', 'tickets',
+  ];
+  const recordFields = ['authState', 'wallets', 'diamondWallets', 'dailyRechargeLimits', 'sessions'];
+  for (const field of arrayFields) {
+    if (field in parsed && !Array.isArray(parsed[field])) throw new Error(`Invalid storage snapshot field: ${field}`);
+  }
+  for (const field of recordFields) {
+    if (field in parsed && !isRecord(parsed[field])) throw new Error(`Invalid storage snapshot field: ${field}`);
+  }
+  if (isRecord(parsed.authState)) {
+    for (const field of ['codes', 'grants', 'sends', 'failures', 'uploads']) {
+      if (field in parsed.authState && !isRecord(parsed.authState[field])) {
+        throw new Error(`Invalid storage snapshot field: authState.${field}`);
+      }
+    }
+  }
+  for (const field of ['wallets', 'diamondWallets'] as const) {
+    if (!(field in parsed)) continue;
+    for (const [key, wallet] of Object.entries(parsed[field] as Record<string, unknown>)) {
+      if (!isRecord(wallet) || typeof wallet.balance !== 'number' || !Number.isFinite(wallet.balance)) {
+        throw new Error(`Invalid storage snapshot field: ${field}.${key}`);
+      }
+    }
+  }
+  for (const field of ['walletTransactions', 'orders'] as const) {
+    if (!(field in parsed)) continue;
+    if (!(parsed[field] as unknown[]).every(isRecord)) throw new Error(`Invalid storage snapshot field: ${field}`);
+  }
 
   const merged: PersistedState = {
     ...base,
@@ -270,21 +311,24 @@ export const loadState = (): PersistedState => {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
-  if (!fs.existsSync(DATA_FILE)) {
-    const base = defaultState();
-    saveState(base);
-    return base;
-  }
+  let raw: string;
   try {
-    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-    const parsed = JSON.parse(raw) as unknown;
-    const migrated = migrateState(parsed);
-    saveState(migrated);
-    return migrated;
+    raw = fs.readFileSync(DATA_FILE, 'utf-8');
   } catch (error) {
-    console.error('Failed to load storage.json, fallback to default state:', error);
-    return defaultState();
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    try {
+      fs.lstatSync(DATA_FILE);
+    } catch (statError) {
+      if ((statError as NodeJS.ErrnoException).code !== 'ENOENT') throw statError;
+      const base = defaultState();
+      saveState(base);
+      return base;
+    }
+    throw error;
   }
+  const migrated = migrateState(JSON.parse(raw) as unknown);
+  saveState(migrated);
+  return migrated;
 };
 
 export const saveState = (state: PersistedState) => {

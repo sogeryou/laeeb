@@ -23,7 +23,7 @@ import { refreshApplicationOwnerSession } from '../components/application/approv
 import { usePublicCompanionProfile } from '../hooks/usePublicCompanionProfile';
 import { blocksCompanionCheckout, toIMOrder } from '../services/orderPresentation';
 import { AUTH_SESSION_EVENT, restoreSession as restoreAuthSession, storeSession, endSession, refreshSession, publishProfileUser } from '../features/auth/session';
-import { navigateAuth, takeReturn } from '../features/auth/routing';
+import { navigateAuth, rememberReturn, takeReturn } from '../features/auth/routing';
 import { DEFAULT_GAME_DISCOVERY_QUERY } from '@shared/gameDiscovery';
 import { z } from 'zod';
 import { gameDiscoveryCopy } from '../components/game-discovery/copy';
@@ -101,6 +101,28 @@ export function useAppState() {
   const [notificationOpening, setNotificationOpening] = useState<{ id: string; guard: () => boolean } | null>(null);
   const notificationOpeningId = notificationOpening?.guard() ? notificationOpening.id : null;
   const [authSessionReady, setAuthSessionReady] = useState(false);
+  const [authSessionError, setAuthSessionError] = useState('');
+  const restoreAttempt = useRef(0);
+  const verifyAuthSession = useCallback(async (refresh = false) => {
+    const attempt = ++restoreAttempt.current;
+    setAuthSessionReady(false);
+    setAuthSessionError('');
+    const current = () => mounted.current && restoreAttempt.current === attempt;
+    try {
+      if (refresh) {
+        // Rotation writes credentials before lookup; hide private UI until its identity is verified.
+        await refreshSession();
+      } else {
+        const session = await restoreAuthSession();
+        if (current() && session && localStorage.getItem(BUSINESS_TOKEN_KEY) === session.token) storeSession(session);
+      }
+    } catch (error) {
+      if (current()) setAuthSessionError((error as Error).message || 'Unable to verify your session.');
+    } finally {
+      if (current()) setAuthSessionReady(true);
+    }
+  }, []);
+  const retryAuthSession = useCallback(() => verifyAuthSession(), [verifyAuthSession]);
 
   const fetchWallet = useCallback(async () => {
     const token = authTokenRef.current;
@@ -158,9 +180,11 @@ export function useAppState() {
 
   useEffect(() => {
     mounted.current = true;
-    let cancelled = false;
     const onNavigation = () => { navigationVersion.current++; };
     const onSession = (event: Event) => {
+      restoreAttempt.current++;
+      setAuthSessionError('');
+      setAuthSessionReady(true);
       const session = (event as CustomEvent).detail;
       if (!session || authUserIdRef.current !== session.user.id || authTokenRef.current !== session.token) sessionVersion.current++;
       if (authUserIdRef.current !== (session?.user?.id || null)) { setWallet(null); setTransactions([]); resetApplicationDraft(); }
@@ -172,16 +196,9 @@ export function useAppState() {
     };
     window.addEventListener(AUTH_SESSION_EVENT, onSession);
     window.addEventListener('popstate', onNavigation);
-    const restoreSession = async () => {
-      try {
-        const session = await restoreAuthSession();
-        if (!cancelled && session && localStorage.getItem(BUSINESS_TOKEN_KEY) === session.token) storeSession(session);
-      } catch { /* Keep stored credentials on a transient network failure; never display an unverified session. */ }
-      finally { if (!cancelled) setAuthSessionReady(true); }
-    };
-    void restoreSession();
+    void retryAuthSession();
     return () => {
-      cancelled = true;
+      restoreAttempt.current++;
       mounted.current = false;
       sessionVersion.current++;
       window.removeEventListener(AUTH_SESSION_EVENT, onSession);
@@ -191,11 +208,11 @@ export function useAppState() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    const refresh = () => { if (document.visibilityState === 'visible') void refreshSession().catch(() => {}); };
+    const refresh = () => { if (document.visibilityState === 'visible') void verifyAuthSession(true); };
     const timer = window.setInterval(refresh, 10 * 60 * 1000);
     window.addEventListener('focus', refresh);
     return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, verifyAuthSession]);
 
   useEffect(() => {
     authTokenRef.current = authToken;
@@ -242,7 +259,10 @@ export function useAppState() {
     setAuthStatus(statusText);
     setAuthMode('LOGIN');
     setAuthLoginMethod('EMAIL_CODE');
-    setShowAuthModal(true);
+    setShowAuthModal(false);
+    const target = pendingNavigationRef.current;
+    rememberReturn(target?.view || currentView, target?.data || selectedEPal);
+    navigateAuth('login');
   };
 
   const openAdminAuthModal = useCallback(() => {
@@ -270,7 +290,7 @@ export function useAppState() {
 
   const handleLogout = async () => {
     sessionVersion.current++;
-    try { await endSession(); } catch { /* Local state is already cleared. */ }
+    const logout = endSession();
     localStorage.removeItem(BUSINESS_TOKEN_KEY);
     sessionStorage.removeItem(BUSINESS_UI_AUTH_KEY);
     setIsAuthenticated(false);
@@ -286,7 +306,8 @@ export function useAppState() {
     setAuthStatus(t('auth.loggedOut'));
     if (window.location.pathname.startsWith('/admin')) {
       window.location.replace('/');
-    }
+    } else navigateAuth('login', true);
+    try { await logout; } catch { /* Local state was cleared synchronously, before this request. */ }
   };
 
   const finishAuthSession = (
@@ -974,7 +995,7 @@ export function useAppState() {
     isRecording, setIsRecording, recordingTime, setRecordingTime,
     pushNotificationsEnabled, setPushNotificationsEnabled, cacheSize, setCacheSize,
     isAuthenticated, setIsAuthenticated, isAuthenticatedRef, authToken, setAuthToken,
-    authUser, setAuthUser, authSessionReady, notifications, openNotification, notificationOpeningId,
+    authUser, setAuthUser, authSessionReady, authSessionError, retryAuthSession, notifications, openNotification, notificationOpeningId,
     showAuthModal, setShowAuthModal, authMode, setAuthMode, authEmail, setAuthEmail,
     authLoginMethod, setAuthLoginMethod, authPassword, setAuthPassword,
     authEmailCode, setAuthEmailCode, authCodeCooldown, authCodeSending,

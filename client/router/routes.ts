@@ -2,6 +2,7 @@ export type View =
   | 'HOME'
   | 'COMMUNITY'
   | 'POST_DETAIL'
+  | 'POST_CREATE'
   | 'GAME_DETAIL'
   | 'PROFILE'
   | 'ORDER_CONFIRM'
@@ -35,6 +36,7 @@ export const BUSINESS_TOKEN_KEY = 'business_workbench_token';
 export const BUSINESS_UI_AUTH_KEY = 'business_ui_authenticated';
 
 export const PROTECTED_VIEWS = new Set<View>([
+  'POST_CREATE',
   'ORDER_CONFIRM',
   'IM',
   'IM_DETAIL',

@@ -16,9 +16,9 @@ const messages: Record<string, { en: string; ar: string }> = {
   AUTH_PROFILE_INCOMPLETE: { en: 'Complete your account profile before editing.', ar: 'أكمل ملف حسابك قبل التعديل.' },
   PRICE_OUT_OF_LEVEL_BAND: { en: 'Primary price is outside the allowed range.', ar: 'سعر الخدمة الأساسية خارج النطاق المسموح.' },
   VALIDATION_gameName: { en: 'Enter a primary service name (up to 100 characters).', ar: 'أدخل اسم الخدمة الأساسية (حتى 100 حرف).' },
-  VALIDATION_hourlyRate: { en: 'Enter a valid primary price (up to two decimals).', ar: 'أدخل سعرا صحيحا للخدمة الأساسية (حتى منزلتين عشريتين).' },
+  VALIDATION_hourlyRate: { en: 'Enter a whole-number coin price from 1 to 10000.', ar: 'أدخل سعرا صحيحا من 1 إلى 10000 عملة دون كسور.' },
   VALIDATION_intro: { en: 'Enter an introduction (up to 2000 characters).', ar: 'أدخل نبذة تعريفية (حتى 2000 حرف).' },
-  VALIDATION_services: { en: 'Check service names, prices and units (maximum 20).', ar: 'تحقق من أسماء الخدمات وأسعارها ووحداتها (20 كحد أقصى).' },
+  VALIDATION_services: { en: 'Check service names, whole-number coin prices (1–10000), and units (maximum 20).', ar: 'تحقق من أسماء الخدمات وأسعارها الصحيحة من 1 إلى 10000 عملة دون كسور ووحداتها (20 كحد أقصى).' },
 };
 
 export function PlayerProfileEditView() {

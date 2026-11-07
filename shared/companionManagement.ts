@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const price = z.number().finite().positive().max(10000).refine(value => Number.isSafeInteger(Math.round(value * 100)) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-7, 'Price must have at most two decimal places');
+const price = z.number().finite().int('Enter a whole-number coin price').positive().max(10000).safe();
 const service = z.object({
   id: z.string().min(1).max(100).regex(/^[A-Za-z0-9_-]+$/),
   name: z.string().trim().min(1).max(100),

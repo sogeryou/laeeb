@@ -30,7 +30,6 @@ export function useAuthFlow(step: AuthStep) {
   const [avatar, setAvatar] = useState<AuthAvatar | null>(null);
   const [avatarUrl, setAvatarUrl] = useState('');
   const [consent, setConsent] = useState(false);
-  const [tags, setTags] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -40,6 +39,7 @@ export function useAuthFlow(step: AuthStep) {
   const lock = useRef(false);
   const initializedUser = useRef('');
   const mounted = useRef(true);
+  const completion = useRef<{ owner: string; current: () => boolean } | null>(null);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const loadConfig = async () => {
@@ -54,27 +54,34 @@ export function useAuthFlow(step: AuthStep) {
   useEffect(() => {
     if (app.authUser && initializedUser.current !== app.authUser.id) {
       initializedUser.current = app.authUser.id;
-      setUsername(app.authUser.username); setGender(app.authUser.gender || ''); setTags(app.authUser.tags || []);
+      setUsername(app.authUser.username); setGender(app.authUser.gender || '');
     }
   }, [app.authUser]);
 
   const enter = (next: AuthStep, replace = false) => { setError(''); setNotice(''); navigateAuth(next, replace); };
+  const finishCurrent = (session: Pick<AuthSession, 'token' | 'user'> & { refreshToken?: string }) => {
+    if (!mounted.current || completion.current?.owner === session.user.id && completion.current.current()) return;
+    try { if (localStorage.getItem(BUSINESS_TOKEN_KEY) !== session.token) return; }
+    catch { return; }
+    completion.current = { owner: session.user.id, current: profileIdentityReadGuard() };
+    void liveApp.current.finishAuthSession(session, false);
+  };
   const accept = (session: AuthSession) => {
     storeSession(session);
     setPassword(''); setCode(''); setDevelopmentCode('');
     if (session.user.accountStatus !== 'ACTIVE') enter('restricted', true);
     else if (!session.user.profileComplete && session.user.role !== 'ADMIN') enter('profile', true);
-    else app.finishAuthSession(session, false);
+    else finishCurrent(session);
   };
 
   useEffect(() => {
-    if (!app.authSessionReady || busy) return;
-    if (app.authUser && ['login','register'].includes(step)) {
+    if (!app.authSessionReady || app.authSessionError || busy) return;
+    if (app.authToken && app.authUser && ['login','register','interests'].includes(step)) {
       if (app.authUser.accountStatus !== 'ACTIVE') navigateAuth('restricted', true);
       else if (!app.authUser.profileComplete && app.authUser.role !== 'ADMIN') navigateAuth('profile', true);
-      else app.finishAuthSession({ token: app.authToken!, user: app.authUser }, false);
+      else finishCurrent({ token: app.authToken, user: app.authUser });
     }
-    if (step === 'profile' && !app.authUser && !grant) navigateAuth('register', true);
+    if (step === 'profile' && !app.authUser && !grant) navigateAuth('login', true);
     if (step === 'interests' && !app.authUser) navigateAuth('login', true);
     if (step === 'verify' && !email) navigateAuth('login', true);
     if (step === 'reset-password' && !resetGrant) navigateAuth('forgot-password', true);
@@ -119,13 +126,17 @@ export function useAuthFlow(step: AuthStep) {
     if (app.authToken && app.authUser) {
       const user = await authApi.completeProfile(profile, app.authToken);
       if (!isCurrent() || !publishProfileUser(user, isCurrent)) return;
+      const token = localStorage.getItem(BUSINESS_TOKEN_KEY);
+      if (!token) return;
+      if (user.accountStatus !== 'ACTIVE') enter('restricted', true);
+      else if (user.profileComplete || user.role === 'ADMIN') finishCurrent({ token, user });
     } else {
       if (!grant || grant.expiresAt <= Date.now()) throw new AuthApiError('AUTH_GRANT_EXPIRED', 401);
       const session = await authApi.register({ ...profile, registrationToken: grant.token });
       if (!isCurrent()) return;
-      storeSession(session); setGrant(null);
+      setGrant(null); accept(session);
     }
-    setBirthDate(''); enter('interests');
+    setBirthDate('');
   });
   const chooseAvatar = (value: string) => {
     const item = authPresentation.avatars.find(a => a.id === value);
@@ -135,22 +146,6 @@ export function useAuthFlow(step: AuthStep) {
     const result = await authApi.uploadAvatar({ image, ...(grant ? { registrationToken: grant.token } : {}) }, app.authToken || undefined);
     setAvatar(result.avatar); setAvatarUrl(result.url);
   };
-  const finish = (skip = false) => run(async () => {
-    if (!app.authToken || !app.authUser) return;
-    const ownerId = app.authUser.id, identityIsCurrent = profileIdentityReadGuard();
-    if (!skip) await authApi.preferences(tags, app.authToken);
-    if (!mounted.current || !identityIsCurrent() || liveApp.current.authUser?.id !== ownerId) return;
-    const token = localStorage.getItem(BUSINESS_TOKEN_KEY);
-    if (!token) return;
-    const user = liveApp.current.authUser;
-    liveApp.current.finishAuthSession({ token, user: { ...user, tags: skip ? user.tags : tags } }, false);
-  });
-  const toggleTag = (id: string) => {
-    setError('');
-    if (tags.includes(id)) setTags(tags.filter(t => t !== id));
-    else if (tags.length < authPresentation.maxTags) setTags([...tags, id]);
-    else setError(c.maxTags);
-  };
   const reset = () => run(async () => {
     if (password !== confirmPassword) { setError(c.mismatch); return; }
     if (!resetGrant || resetGrant.expiresAt <= Date.now()) throw new AuthApiError('AUTH_GRANT_EXPIRED', 401);
@@ -159,14 +154,13 @@ export function useAuthFlow(step: AuthStep) {
   const back = () => {
     if (busy) return;
     if (step === 'verify') { setCode(''); setDevelopmentCode(''); enter(purpose === 'reset' ? 'forgot-password' : purpose); }
-    else if (step === 'interests') enter('profile');
     else if (step === 'profile' && !app.authUser) { setGrant(null); enter('register'); }
     else if (['forgot-password','reset-password'].includes(step)) enter('login');
-    else navigateAuth(null, true);
+    else if (!app.authUser) enter('login', true);
   };
   return { app, language, c, config, loadConfig, email, setEmail, code, setCode, password, setPassword, confirmPassword, setConfirmPassword,
     passwordMode, setPasswordMode, purpose, username, setUsername, gender, setGender, birthDate, setBirthDate, avatar, avatarUrl, consent, setConsent,
-    tags, toggleTag, busy, error, notice, developmentCode, cooldown: Math.max(0, Math.ceil((cooldownUntil - now) / 1000)),
-    profileValid, validBirthDate, enter, send, verify, login, completeProfile, chooseAvatar, uploadAvatar, finish, reset, back };
+    busy, error, notice, developmentCode, cooldown: Math.max(0, Math.ceil((cooldownUntil - now) / 1000)),
+    profileValid, validBirthDate, enter, send, verify, login, completeProfile, chooseAvatar, uploadAvatar, reset, back };
 }
 export type AuthFlow = ReturnType<typeof useAuthFlow>;

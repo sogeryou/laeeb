@@ -490,7 +490,7 @@ const {
                             <div className="space-y-3">
                               <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">{t('apply.priceCoins')}</p>
                               <input 
-                                type="number"
+                                type="number" min="1" max="500" step="1" title="Enter a whole-number coin price from 1 to 500"
                                 placeholder="0"
                                 value={playerApplicationData.price || ''}
                                 onChange={(e) => setPlayerApplicationData(prev => ({ ...prev, price: Number(e.target.value) }))}

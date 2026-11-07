@@ -19,7 +19,7 @@ export function serviceChoices(companion: CompanionEntity) {
   return [
     { id: companion.id, name: companion.gameName, unitPrice: companion.hourlyRate, unit: 'hr' },
     ...(companion.services || []).filter(service => service.id !== companion.id),
-  ].map(service => ({ ...service, unitPrice: fromMinor(toMinor(service.unitPrice)) }));
+  ];
 }
 
 export function quoteOrder(ctx: AppContext, userId: string, input: Omit<CreateOrderInput, 'requestId' | 'expectedTotal'>, now = Date.now()): OrderQuote {
@@ -34,25 +34,28 @@ export function quoteOrder(ctx: AppContext, userId: string, input: Omit<CreateOr
   const selectedId = input.serviceId || companion.id;
   const service = serviceChoices(companion).find(s => s.id === selectedId);
   if (!service || (input.serviceName !== undefined && input.serviceName !== service.name)) throw new OrderFlowError('ORDER_SERVICE_NOT_FOUND', 400);
-  if (!service.name || !service.unit || service.unitPrice <= 0) throw new OrderFlowError('ORDER_AMOUNT_INVALID');
-  const subtotal = toMinor(service.unitPrice) * input.quantity;
-  if (!Number.isSafeInteger(subtotal)) throw new OrderFlowError('ORDER_AMOUNT_INVALID');
-  let discount = 0;
+  if (!service.name || !service.unit || !Number.isSafeInteger(service.unitPrice) || service.unitPrice <= 0) throw new OrderFlowError('ORDER_AMOUNT_INVALID');
+  const subtotal = new Decimal(service.unitPrice).mul(input.quantity);
+  if (!Number.isSafeInteger(subtotal.toNumber()) || !Number.isSafeInteger(subtotal.mul(100).toNumber())) throw new OrderFlowError('ORDER_AMOUNT_INVALID');
+  let discount = new Decimal(0);
   if (input.couponGrantId) {
     const grant = ctx.couponGrants.find(g => g.id === input.couponGrantId && g.userId === userId);
     if (!grant || grant.status !== 'ACTIVE' || !Number.isFinite(grant.expiresAt) || grant.expiresAt <= now) throw new OrderFlowError('COUPON_INVALID', 400);
     const template = ctx.couponTemplates.find(t => t.id === grant.templateId);
     if (!template) throw new OrderFlowError('COUPON_TEMPLATE_MISSING', 400);
-    if (subtotal < toMinor(template.minSpend)) throw new OrderFlowError('COUPON_MIN_SPEND', 400);
+    if (subtotal.lt(fromMinor(toMinor(template.minSpend)))) throw new OrderFlowError('COUPON_MIN_SPEND', 400);
     if (!Number.isFinite(template.value) || template.value < 0) throw new OrderFlowError('COUPON_INVALID', 400);
-    discount = template.type === 'FIXED' ? toMinor(template.value)
-      : new Decimal(subtotal).mul(template.value).div(100).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
-    discount = Math.min(subtotal, discount);
+    discount = template.type === 'FIXED' ? new Decimal(template.value)
+      : subtotal.mul(template.value).div(100);
+    discount = Decimal.min(subtotal, discount);
   }
+  // For integer subtotal S, floor(S - D) = S - ceil(D). Round D first so
+  // Decimal subtraction cannot erase a tiny positive discount near S.
+  const totalPrice = subtotal.minus(discount.toDecimalPlaces(0, Decimal.ROUND_CEIL)).toNumber();
   return {
     companionId: companion.id, serviceId: service.id, serviceName: service.name, unit: service.unit,
-    quantity: input.quantity, unitPrice: service.unitPrice, subtotal: fromMinor(subtotal),
-    discount: fromMinor(discount), totalPrice: fromMinor(subtotal - discount),
+    quantity: input.quantity, unitPrice: service.unitPrice, subtotal: subtotal.toNumber(),
+    discount: subtotal.minus(totalPrice).toNumber(), totalPrice,
     ...(input.couponGrantId ? { couponGrantId: input.couponGrantId } : {}),
   };
 }

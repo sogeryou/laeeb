@@ -41,7 +41,6 @@ import {
   ROLE_TEMPLATES,
   type AccountStatus,
   type AdminPermission,
-  type AdminRoleTemplate,
   type BanModuleKey,
   type ModerationReport,
   type PersistedState,
@@ -49,6 +48,7 @@ import {
   type UserRole,
 } from './domain/types.js';
 import type { AppContext } from './app/context.js';
+import { registerAdminRoleRoutes } from './admin/roles.js';
 import { legacyHashPassword as hashPassword, loadState, normalizeUserPassword, saveState } from './state/jsonState.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerAccountProfileRoutes } from './account/profile.js';
@@ -609,24 +609,7 @@ async function startServer() {
     });
   });
 
-  app.get('/api/admin/role-templates', authMiddleware, requireAdmin(), (req, res) => {
-    res.json(ROLE_TEMPLATES);
-  });
-
-  app.post('/api/admin/users/:id/role-template', authMiddleware, requireAdmin(), (req, res) => {
-    const user = users.find(item => item.id === req.params.id);
-    if (!user) return sendError(res, 404, 'ADMIN_USER_NOT_FOUND', 'User not found');
-    if (user.role !== 'ADMIN') return sendError(res, 400, 'ADMIN_TARGET_NOT_ADMIN', 'Target user is not admin');
-    const roleTemplate = req.body?.roleTemplate as AdminRoleTemplate;
-    if (!roleTemplate || !ROLE_TEMPLATES[roleTemplate]) {
-      return sendError(res, 400, 'ADMIN_ROLE_TEMPLATE_INVALID', 'Invalid roleTemplate');
-    }
-    user.adminRoleTemplate = roleTemplate;
-    user.permissions = [...ROLE_TEMPLATES[roleTemplate]];
-    appendAuditLog((req as any).authUserId, 'ADMIN_ROLE_TEMPLATE_UPDATE', 'finance', user.id, { roleTemplate });
-    persistState();
-    res.json(toPublicUser(user));
-  });
+  registerAdminRoleRoutes(app, appContext);
 
   app.get('/api/admin/companions', authMiddleware, requireAdmin('COMPANION_REVIEW'), (req, res) => {
     const q = String(req.query.q || '').toLowerCase();

@@ -23,7 +23,7 @@ function setup() {
   const app = express(); app.use(express.json()); registerBusinessRoutes(app, ctx);
   const get = (path: string, actor = 'provider') => request(app).get(path).set('Authorization', actor);
   const patch = (body: any, actor = 'provider') => request(app).patch('/api/companions/me/profile').set('Authorization', actor).send(body);
-  const draft = (changes: any = {}) => ({ gameName: 'PUBG Mobile', intro: 'Saudi duo sessions', hourlyRate: 9, updatedAt: state.companions[0].updatedAt, services: [{ id: 'match', name: 'Ranked match', unitPrice: 7.5, unit: 'match' }, { id: 'new-extra', name: 'Coaching', unitPrice: 10, unit: 'hr' }], ...changes });
+  const draft = (changes: any = {}) => ({ gameName: 'PUBG Mobile', intro: 'Saudi duo sessions', hourlyRate: 9, updatedAt: state.companions[0].updatedAt, services: [{ id: 'match', name: 'Ranked match', unitPrice: 7, unit: 'match' }, { id: 'new-extra', name: 'Coaching', unitPrice: 10, unit: 'hr' }], ...changes });
   return { app, ctx, state, get, patch, draft, saved: () => saved };
 }
 
@@ -36,7 +36,7 @@ it('returns owner extras only and persists primary and extra edits with stable I
   expect(before.body).toMatchObject({ id: 'cp', userId: 'provider', gameName: 'Game', hourlyRate: 8, services: [{ id: 'match' }] });
   const saved = await s.patch(s.draft());
   expect(saved.status).toBe(200);
-  expect(saved.body).toMatchObject({ gameName: 'PUBG Mobile', intro: 'Saudi duo sessions', hourlyRate: 9, services: [{ id: 'match', unitPrice: 7.5 }, { id: 'new-extra' }] });
+  expect(saved.body).toMatchObject({ gameName: 'PUBG Mobile', intro: 'Saudi duo sessions', hourlyRate: 9, services: [{ id: 'match', unitPrice: 7 }, { id: 'new-extra' }] });
   expect(saved.body.updatedAt).toBeGreaterThan(1);
   expect((await s.get('/api/companions/me/profile')).body).toEqual(saved.body);
   expect(s.saved().companions[0].services.map((x: any) => x.id)).toEqual(['match', 'new-extra']);
@@ -63,7 +63,7 @@ it('rejects invalid, injected, removed, duplicate and primary-colliding services
     { services: [] }, { services: [{ id: 'cp', name: 'Wrong', unitPrice: 5, unit: 'hr' }, s.draft().services[0]] },
     { services: [s.draft().services[0], s.draft().services[0]] },
     { services: [{ ...s.draft().services[0], unit: 'day' }] },
-    { services: [{ ...s.draft().services[0], unitPrice: 7.555 }] },
+    { services: [{ ...s.draft().services[0], unitPrice: 7.5 }] },
     { services: [{ ...s.draft().services[0], id: 'bad id' }] },
     { services: [{ ...s.draft().services[0], unitPrice: 10000.01 }] },
     { services: [{ ...s.draft().services[0], name: '' }] },
@@ -127,7 +127,7 @@ it('uses new quote prices and preserves historical order snapshots', async () =>
   expect(quote.body.totalPrice).toBe(12);
   expect((await s.patch(s.draft())).status).toBe(200);
   const current = await request(s.app).post('/api/orders/quote').set('Authorization', 'buyer').send({ companionId: 'cp', serviceId: 'match', quantity: 2 });
-  expect(current.body).toMatchObject({ serviceName: 'Ranked match', unitPrice: 7.5, totalPrice: 15 });
+  expect(current.body).toMatchObject({ serviceName: 'Ranked match', unitPrice: 7, totalPrice: 14 });
   expect(s.state.orders[0]).toEqual(before);
   const create = (expectedTotal: number) => request(s.app).post('/api/orders').set('Authorization', 'buyer').send({ companionId: 'cp', serviceId: 'match', quantity: 2, expectedTotal, requestId: 'changed-price' });
   const stale = await create(quote.body.totalPrice);
@@ -136,8 +136,8 @@ it('uses new quote prices and preserves historical order snapshots', async () =>
   expect(s.state.wallets.buyer.balance).toBe(100);
   const funded = await create(current.body.totalPrice);
   expect(funded.status).toBe(201);
-  expect(funded.body).toMatchObject({ serviceName: 'Ranked match', unitPrice: 7.5, totalPrice: 15 });
-  expect(s.state.wallets.buyer.balance).toBe(85);
+  expect(funded.body).toMatchObject({ serviceName: 'Ranked match', unitPrice: 7, totalPrice: 14 });
+  expect(s.state.wallets.buyer.balance).toBe(86);
   expect((await create(current.body.totalPrice)).body.id).toBe(funded.body.id);
   expect(s.state.walletTransactions.filter((t: any) => t.type === 'ORDER_PAY')).toHaveLength(1);
   expect(s.state.orders[0]).toEqual(before);

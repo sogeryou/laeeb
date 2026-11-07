@@ -8,7 +8,7 @@ import { initialLevel } from '../../backend/player-center/officialLevel';
 function setup(saved?: any) {
   const state = saved || {
     users: ['buyer', 'provider', 'other'].map(id => ({ id, username: id, avatar: `${id}.png`, accountStatus: 'ACTIVE' })),
-    companions: [{ id: 'cp', userId: 'provider', gameName: 'Game', intro: 'Duo', hourlyRate: 8.25, status: 'APPROVED', availability: 'ONLINE', ranking: initialLevel(), services: [{ id: 'match', name: 'Ranked match', unitPrice: 5.55, unit: 'match' }] }],
+    companions: [{ id: 'cp', userId: 'provider', gameName: 'Game', intro: 'Duo', hourlyRate: 8, status: 'APPROVED', availability: 'ONLINE', ranking: initialLevel(), services: [{ id: 'match', name: 'Ranked match', unitPrice: 5, unit: 'match' }] }],
     orders: [], reviews: [], riskEvents: [], levelEvents: [], exposureLogs: [],
     wallets: { buyer: { userId: 'buyer', balance: 100, lastUpdated: 1 }, other: { userId: 'other', balance: 100, lastUpdated: 1 } },
     diamondWallets: {}, walletTransactions: [],
@@ -38,23 +38,61 @@ function setup(saved?: any) {
 }
 afterEach(() => vi.restoreAllMocks());
 
+it('funds and settles exactly the server integer quote after a fractional discount', async () => {
+  const { ctx, post, create } = setup();
+  ctx.couponTemplates[0].value = 13;
+  const quote = await post('/api/orders/quote', { companionId: 'cp', quantity: 1, couponGrantId: 'grant' });
+  expect(quote.body).toMatchObject({ subtotal: 8, discount: 2, totalPrice: 6 });
+  const order = await create({ couponGrantId: 'grant', expectedTotal: quote.body.totalPrice });
+  expect(order.status).toBe(201);
+  expect(order.body.totalPrice).toBe(quote.body.totalPrice);
+  expect(ctx.wallets.buyer.balance).toBe(94);
+  await post(`/api/orders/${order.body.id}/accept`, {}, 'provider');
+  await post(`/api/orders/${order.body.id}/complete`, { evidence: ['proof'] }, 'provider');
+  expect((await post(`/api/orders/${order.body.id}/confirm`)).body.escrowState).toBe('SETTLED');
+  expect(ctx.diamondWallets.provider.balance).toBe(quote.body.totalPrice);
+});
+
+it('rejects a stored fractional selected service without altering prices or funds', async () => {
+  const { ctx, post, create } = setup();
+  ctx.companions[0].services[0].unitPrice = 8.25;
+  expect((await post('/api/orders/quote', { companionId: 'cp', serviceId: 'match' })).body.error.code).toBe('ORDER_AMOUNT_INVALID');
+  expect((await create({ serviceId: 'match' })).body.error.code).toBe('ORDER_AMOUNT_INVALID');
+  expect(ctx.companions[0].services[0].unitPrice).toBe(8.25);
+  expect(ctx.wallets.buyer.balance).toBe(100);
+  expect(ctx.orders).toHaveLength(0);
+  expect(ctx.persistState).not.toHaveBeenCalled();
+  expect((await post('/api/orders/quote', { companionId: 'cp' })).body.totalPrice).toBe(8);
+});
+
+it('settles an already funded fractional historical snapshot without repricing', async () => {
+  const { ctx, create, post } = setup();
+  const order = await create();
+  Object.assign(ctx.orders[0], { unitPrice: 8.25, totalPrice: 8.25, frozenAmount: 8.25 });
+  await post(`/api/orders/${order.body.id}/accept`, {}, 'provider');
+  await post(`/api/orders/${order.body.id}/complete`, { evidence: ['proof'] }, 'provider');
+  await post(`/api/orders/${order.body.id}/confirm`);
+  expect(ctx.diamondWallets.provider.balance).toBe(8.25);
+  expect(ctx.orders[0].totalPrice).toBe(8.25);
+});
+
 it('authenticates quotes and prices selected configured services with canonical money', async () => {
   const { app, post, create, ctx } = setup();
   expect((await request(app).post('/api/orders/quote').send({ companionId: 'cp' })).status).toBe(401);
   const body = { companionId: 'cp', serviceId: 'match', serviceName: 'Ranked match', quantity: 3, couponGrantId: 'grant' };
   const quote = await post('/api/orders/quote', body);
   expect(quote.status).toBe(200);
-  expect(quote.body).toEqual({ companionId: 'cp', serviceId: 'match', serviceName: 'Ranked match', unit: 'match', quantity: 3, unitPrice: 5.55, subtotal: 16.65, discount: 1.67, totalPrice: 14.98, couponGrantId: 'grant' });
+  expect(quote.body).toEqual({ companionId: 'cp', serviceId: 'match', serviceName: 'Ranked match', unit: 'match', quantity: 3, unitPrice: 5, subtotal: 15, discount: 2, totalPrice: 13, couponGrantId: 'grant' });
   expect(ctx.wallets.buyer.balance).toBe(100); expect(ctx.couponGrants[0].status).toBe('ACTIVE');
   const order = await create({ ...body, expectedTotal: quote.body.totalPrice, requestId: 'selected' });
   expect(order.status).toBe(201);
   expect(order.body).toMatchObject({ ...quote.body, role: 'BUYER', participant: { id: 'cp', userId: 'provider' }, reviewed: false, workflowVersion: 2, escrowState: 'FROZEN' });
-  expect(ctx.wallets.buyer.balance).toBe(85.02);
+  expect(ctx.wallets.buyer.balance).toBe(87);
 });
 
 it('uses the home feed default hourly service and rejects fabricated services or variants', async () => {
   const { post, create } = setup();
-  expect((await post('/api/orders/quote', { companionId: 'cp', serviceId: 'cp', serviceName: 'Game', quantity: 2 })).body).toMatchObject({ unit: 'hr', unitPrice: 8.25, subtotal: 16.5, totalPrice: 16.5 });
+  expect((await post('/api/orders/quote', { companionId: 'cp', serviceId: 'cp', serviceName: 'Game', quantity: 2 })).body).toMatchObject({ unit: 'hr', unitPrice: 8, subtotal: 16, totalPrice: 16 });
   expect((await create({ serviceId: 'missing' })).body.error?.code).toBe('ORDER_SERVICE_NOT_FOUND');
   expect((await create({ serviceId: 'match', serviceName: 'fake variant' })).body.error?.code).toBe('ORDER_SERVICE_NOT_FOUND');
   expect((await create({ serviceName: 'fake variant' })).body.error?.code).toBe('ORDER_SERVICE_NOT_FOUND');
@@ -72,13 +110,13 @@ it('rejects changed quoted totals before funding or consuming coupons', async ()
 
 it('persists buyer-scoped request IDs and replays used coupons without a second debit', async () => {
   const { create, ctx, saved } = setup();
-  const body = { requestId: 'key', couponGrantId: 'grant', expectedTotal: 7.42 };
+  const body = { requestId: 'key', couponGrantId: 'grant', expectedTotal: 7 };
   const first = await create(body); expect(first.status).toBe(201);
   const restored = setup(saved());
   restored.ctx.companions[0].hourlyRate = 9; restored.ctx.companions[0].availability = 'OFFLINE';
   const replay = await restored.create(body);
   expect(replay.status).toBe(200); expect(replay.body.id).toBe(first.body.id);
-  expect(restored.ctx.wallets.buyer.balance).toBe(92.58);
+  expect(restored.ctx.wallets.buyer.balance).toBe(93);
   expect(restored.ctx.walletTransactions.filter((t: any) => t.type === 'ORDER_PAY')).toHaveLength(1);
   expect(restored.ctx.orders).toHaveLength(1);
   for (const changes of [{ quantity: 2 }, { serviceId: 'match' }, { expectedTotal: 7.41 }, { couponGrantId: undefined }, { serviceName: 'Game' }]) {
@@ -92,15 +130,15 @@ it('persists buyer-scoped request IDs and replays used coupons without a second 
 
 it('recovers a funded same-key response after a buyer ORDER ban without permitting new funding', async () => {
   const { create, post, ctx } = setup();
-  const body = { requestId: 'lost-response', couponGrantId: 'grant', expectedTotal: 7.42 };
+  const body = { requestId: 'lost-response', couponGrantId: 'grant', expectedTotal: 7 };
   const first = await create(body); expect(first.status).toBe(201);
   ctx.users[0].banModules = { ORDER: true };
   const replay = await create(body);
   expect(replay.status).toBe(200);
-  expect(replay.body).toMatchObject({ id: first.body.id, role: 'BUYER', participant: { userId: 'provider' }, reviewed: false, totalPrice: 7.42, workflowVersion: 2 });
+  expect(replay.body).toMatchObject({ id: first.body.id, role: 'BUYER', participant: { userId: 'provider' }, reviewed: false, totalPrice: 7, workflowVersion: 2 });
   expect((await create({ requestId: 'new-funding' })).body.error?.code).toBe('ORDER_ACTION_BLOCKED');
   expect((await post('/api/orders/quote', { companionId: 'cp', quantity: 1 })).status).toBe(403);
-  expect(ctx.orders).toHaveLength(1); expect(ctx.wallets.buyer.balance).toBe(92.58);
+  expect(ctx.orders).toHaveLength(1); expect(ctx.wallets.buyer.balance).toBe(93);
   expect(ctx.walletTransactions.filter((t: any) => t.type === 'ORDER_PAY')).toHaveLength(1);
   expect(ctx.couponGrants[0].status).toBe('USED');
 });
@@ -111,14 +149,14 @@ it('resolves a buyer-scoped payload conflict before a newly imposed ORDER ban', 
   ctx.users[0].banModules = { ORDER: true };
   const conflict = await create({ requestId: 'conflict-after-ban', quantity: 2 });
   expect(conflict.status).toBe(409); expect(conflict.body.error?.code).toBe('ORDER_REQUEST_ID_CONFLICT');
-  expect(ctx.orders).toHaveLength(1); expect(ctx.wallets.buyer.balance).toBe(91.75);
+  expect(ctx.orders).toHaveLength(1); expect(ctx.wallets.buyer.balance).toBe(92);
 });
 
 it('serializes concurrent retries and funding failures leave no order', async () => {
   const { create, post, ctx } = setup();
   const results = await Promise.all([create({ requestId: 'same' }), create({ requestId: 'same' })]);
   expect(results.map(r => r.status).sort()).toEqual([200, 201]);
-  expect(ctx.orders).toHaveLength(1); expect(ctx.wallets.buyer.balance).toBe(91.75);
+  expect(ctx.orders).toHaveLength(1); expect(ctx.wallets.buyer.balance).toBe(92);
   await post(`/api/orders/${ctx.orders[0].id}/cancel`);
   ctx.wallets.buyer.balance = 0;
   expect((await create({ requestId: 'poor', couponGrantId: 'grant' })).body.error?.code).toBe('WALLET_INSUFFICIENT_BALANCE');
@@ -132,7 +170,7 @@ it.each(['CREATED', 'IN_SERVICE', 'AWAITING_CONFIRMATION', 'DISPUTED'])('prevent
   expect((await create({ requestId: 'first' })).body.id).toBe(first.body.id);
   const second = await create({ requestId: 'second' });
   expect(second.status).toBe(409); expect(second.body.error?.code).toBe('ORDER_ONGOING_EXISTS');
-  expect(ctx.wallets.buyer.balance).toBe(91.75);
+  expect(ctx.wallets.buyer.balance).toBe(92);
   expect((await create({ requestId: 'second' }, 'other')).status).toBe(201);
 });
 
@@ -214,7 +252,7 @@ it('returns role-aware lists and actions through completion with exact counterpa
   const completed = await post(`/api/orders/${id}/confirm`);
   expect(completed.body).toMatchObject({ status: 'COMPLETED', role: 'BUYER', escrowState: 'SETTLED' });
   await post(`/api/orders/${id}/confirm`);
-  expect(ctx.diamondWallets.provider.balance).toBe(8.25);
+  expect(ctx.diamondWallets.provider.balance).toBe(8);
   expect(ctx.walletTransactions.filter((t: any) => t.type === 'INCOME')).toHaveLength(1);
 });
 
@@ -276,11 +314,11 @@ it('rolls back automatic deadline refunds on a failed save and frees booking aft
   vi.mocked(Date.now).mockReturnValue(now + 900000);
   ctx.persistState.mockImplementationOnce(() => { throw new Error('disk unavailable'); });
   expect((await get('/api/orders')).status).toBe(503);
-  expect(ctx.orders[0].status).toBe('CREATED'); expect(ctx.wallets.buyer.balance).toBe(91.75);
+  expect(ctx.orders[0].status).toBe('CREATED'); expect(ctx.wallets.buyer.balance).toBe(92);
   expect(ctx.walletTransactions.filter((t: any) => t.type === 'REFUND')).toHaveLength(0);
   expect((await create({ requestId: 'second' })).status).toBe(201);
   expect(ctx.orders[0].status).toBe('CANCELLED'); expect(ctx.orders[1].id).not.toBe(first.body.id);
-  expect(ctx.wallets.buyer.balance).toBe(91.75);
+  expect(ctx.wallets.buyer.balance).toBe(92);
 });
 
 it('keeps immutable order pricing snapshots and internal replay payloads out of DTOs', async () => {
@@ -289,7 +327,7 @@ it('keeps immutable order pricing snapshots and internal replay payloads out of 
   expect(first.body.requestPayload).toBeUndefined();
   expect(ctx.orders[0].requestPayload).toEqual(expect.any(String));
   Object.assign(ctx.companions[0].services[0], { name: 'Changed', unitPrice: 25, unit: 'hr' });
-  expect((await get('/api/orders')).body[0]).toMatchObject({ serviceName: 'Ranked match', serviceId: 'match', unit: 'match', unitPrice: 5.55, totalPrice: 5.55 });
+  expect((await get('/api/orders')).body[0]).toMatchObject({ serviceName: 'Ranked match', serviceId: 'match', unit: 'match', unitPrice: 5, totalPrice: 5 });
 });
 
 it('validates coupon ownership, expiry and minimum and caps fixed discounts at the subtotal', async () => {
@@ -299,7 +337,7 @@ it('validates coupon ownership, expiry and minimum and caps fixed discounts at t
   ctx.couponTemplates[0].minSpend = 20;
   expect((await create({ couponGrantId: 'grant' })).body.error?.code).toBe('COUPON_MIN_SPEND');
   Object.assign(ctx.couponTemplates[0], { minSpend: 0, type: 'FIXED', value: 30 });
-  expect((await post('/api/orders/quote', body)).body).toMatchObject({ subtotal: 8.25, discount: 8.25, totalPrice: 0 });
+  expect((await post('/api/orders/quote', body)).body).toMatchObject({ subtotal: 8, discount: 8, totalPrice: 0 });
   ctx.couponGrants[0].expiresAt = Date.now();
   expect((await post('/api/orders/quote', body)).body.error?.code).toBe('COUPON_INVALID');
   expect(ctx.wallets.buyer.balance).toBe(100); expect(ctx.orders).toHaveLength(0);
@@ -320,7 +358,7 @@ it('enforces deadline refunds and confirmation without touching legacy records',
   const completed = (await post(`/api/orders/${active.id}/complete`, { evidence: ['proof'] }, 'provider')).body;
   vi.mocked(Date.now).mockReturnValue(completed.confirmationDueAt);
   expect((await get('/api/orders')).body.find((o: any) => o.id === active.id).status).toBe('COMPLETED');
-  expect(ctx.diamondWallets.provider.balance).toBe(8.25); expect(pending.id).not.toBe(active.id);
+  expect(ctx.diamondWallets.provider.balance).toBe(8); expect(pending.id).not.toBe(active.id);
 });
 
 it.each([{ rating: 1.5 }, { rating: 0 }, { rating: 6 }, { rating: '5' }, { content: 'x'.repeat(2001) }, { tags: ['x'.repeat(41)] }, { tags: Array(11).fill('tag') }])('rejects invalid review fields %j', async (invalid) => {

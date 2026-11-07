@@ -8,7 +8,7 @@ export type ProfileDraft = { gameName: string; intro: string; hourlyRate: string
 type State = { owner: string; draft: ProfileDraft | null; source: ManagedCompanionProfile | null; loading: boolean; busy: boolean; error: string; conflict: boolean; dirty: boolean };
 const empty = (owner = ''): State => ({ owner, draft: null, source: null, loading: false, busy: false, error: '', conflict: false, dirty: false });
 const fromProfile = (profile: ManagedCompanionProfile): ProfileDraft => ({ gameName: profile.gameName, intro: profile.intro, hourlyRate: String(profile.hourlyRate), services: profile.services.map(s => ({ id: s.id, name: s.name, price: String(s.unitPrice), unit: s.unit })) });
-const price = (value: string) => /^(?:\d+)(?:\.\d{1,2})?$/.test(value) && Number(value) > 0 && Number(value) <= 10000;
+const price = (value: string) => /^\d+$/.test(value) && Number.isSafeInteger(Number(value)) && Number(value) > 0 && Number(value) <= 10000;
 
 export function validateCompanionDraft(draft: ProfileDraft | null): string {
   if (!draft) return 'missing';

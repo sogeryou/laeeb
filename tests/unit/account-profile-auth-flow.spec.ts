@@ -30,13 +30,6 @@ it('ignores an onboarding profile acknowledgement after leaving auth and saving 
   publishProfileUser(user('Saved name'), () => true); pending.resolve(user('Onboarding name')); await operation;
   expect(event.mock.calls.map(call => call[0].detail.user.username)).toEqual(['Saved name']); expect(navigateAuth).not.toHaveBeenCalled(); browser.removeEventListener(AUTH_SESSION_EVENT, event);
 });
-it('does not finish an old interests step after leaving auth and saving a newer profile', async () => {
-  const pending = deferred<{ tags: string[] }>(); vi.spyOn(authApi, 'preferences').mockReturnValueOnce(pending.promise);
-  await render('interests'); await act(async () => { flow.toggleTag('pubg'); }); let operation!: Promise<void>;
-  await act(async () => { operation = flow.finish(); root!.unmount(); }); root = null;
-  publishProfileUser(user('Saved name'), () => true); pending.resolve({ tags: ['pubg'] }); await operation;
-  expect(app.finishAuthSession).not.toHaveBeenCalled();
-});
 it('publishes an onboarding profile with current credentials after a same-owner token rotation', async () => {
   const pending = deferred<AuthUser>(); vi.spyOn(authApi, 'completeProfile').mockReturnValueOnce(pending.promise); await validProfile();
   const event = vi.fn(); browser.addEventListener(AUTH_SESSION_EVENT, event); let operation!: Promise<void>;
@@ -57,10 +50,12 @@ it('does not publish an old registration response after another account signs in
   expect(localStorage.getItem('business_workbench_token')).toBe('account-B'); expect(navigateAuth).not.toHaveBeenCalled();
 });
 
-it('finishes a current interests step using the rotated token', async () => {
-  const pending = deferred<{ tags: string[] }>(); vi.spyOn(authApi, 'preferences').mockReturnValueOnce(pending.promise);
-  await render('interests'); await act(async () => { flow.toggleTag('pubg'); }); let operation!: Promise<void>;
-  await act(async () => { operation = flow.finish(); }); localStorage.setItem('business_workbench_token', 'rotated-token');
-  await act(async () => { pending.resolve({ tags: ['pubg'] }); await operation; });
-  expect(app.finishAuthSession).toHaveBeenCalledWith({ token: 'rotated-token', user: { ...user(), tags: ['pubg'] } }, false);
+it('finishes an acknowledged profile directly using the rotated token and preserving old tags', async () => {
+  const pending = deferred<AuthUser>(); vi.spyOn(authApi, 'completeProfile').mockReturnValueOnce(pending.promise); vi.spyOn(authApi, 'preferences');
+  await validProfile(); let operation!: Promise<void>;
+  await act(async () => { operation = flow.completeProfile(); }); localStorage.setItem('business_workbench_token', 'rotated-token');
+  await act(async () => { pending.resolve({ ...user('Onboarding name'), tags: ['pubg'] }); await operation; });
+  expect(app.finishAuthSession).toHaveBeenCalledWith({ token: 'rotated-token', user: { ...user('Onboarding name'), tags: ['pubg'] } }, false);
+  expect(authApi.preferences).not.toHaveBeenCalled();
+  expect(navigateAuth).not.toHaveBeenCalledWith('interests', expect.anything());
 });

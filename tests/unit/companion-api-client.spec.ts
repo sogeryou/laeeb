@@ -9,7 +9,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 it('loads and saves the authenticated owner draft without sending ownership fields', async () => {
-  const draft = { gameName: 'PUBG Mobile', intro: 'Duo', hourlyRate: 9, updatedAt: 1, services: [{ id: 'ranked', name: 'Ranked match', unitPrice: 7.5, unit: 'match' as const }] };
+  const draft = { gameName: 'PUBG Mobile', intro: 'Duo', hourlyRate: 9, updatedAt: 1, services: [{ id: 'ranked', name: 'Ranked match', unitPrice: 7, unit: 'match' as const }] };
   await businessApi.getManagedCompanionProfile('access');
   await businessApi.updateManagedCompanionProfile('access', draft);
   expect(fetcher.mock.calls[0][0]).toBe('/api/companions/me/profile');

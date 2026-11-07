@@ -48,9 +48,9 @@ async function login(page: Page, email: string, id: string) {
     await page.getByLabel('Birthday', { exact: true }).fill('1995-01-01');
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    await page.getByRole('button', { name: 'Skip for now', exact: true }).click();
   }
   await expect(page).not.toHaveURL(/\/auth\//);
+  await expect(page.getByRole('navigation')).toBeVisible();
 }
 
 async function editor(page: Page, loaded = true) {
@@ -99,14 +99,14 @@ test.describe('disposable companion management', () => {
     await page.getByLabel('Primary service price').fill('20');
     await page.getByLabel('Introduction').fill('Coordinated duo sessions with patient callouts.');
     await page.getByLabel(`Service name ${existingServiceId}`).fill('Preview ranked duo');
-    await page.getByLabel(`Service price ${existingServiceId}`).fill('7.5');
+    await page.getByLabel(`Service price ${existingServiceId}`).fill('8');
     await page.getByRole('button', { name: 'Add New Service' }).click();
     const newName = page.getByLabel(/^Service name (?!preview-ranked-match)/);
     await expect(newName).toHaveCount(1);
     const newId = (await newName.getAttribute('aria-label'))!.replace('Service name ', '');
     expect(newId).toMatch(/^[A-Za-z0-9_-]{1,100}$/);
     await newName.fill('Coaching session');
-    await page.getByLabel(`Service price ${newId}`).fill('9.5');
+    await page.getByLabel(`Service price ${newId}`).fill('9');
     await page.setViewportSize({ width: 1440, height: 1000 });
     await capture(page, info, 'editor-desktop-en-before-save', true);
     const saveResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/companions/me/profile' && response.request().method() === 'PATCH');
@@ -116,8 +116,8 @@ test.describe('disposable companion management', () => {
     expect(saved.updatedAt).toBeGreaterThan(before.updatedAt);
     expect(saved).toMatchObject({ gameName: 'Valorant Duo', hourlyRate: 20, intro: 'Coordinated duo sessions with patient callouts.' });
     expect(saved.services).toEqual(expect.arrayContaining([
-      { id: existingServiceId, name: 'Preview ranked duo', unitPrice: 7.5, unit: 'match' },
-      { id: newId, name: 'Coaching session', unitPrice: 9.5, unit: 'hr' },
+      { id: existingServiceId, name: 'Preview ranked duo', unitPrice: 8, unit: 'match' },
+      { id: newId, name: 'Coaching session', unitPrice: 9, unit: 'hr' },
     ]));
     await page.reload();
     await editor(page);
@@ -156,8 +156,8 @@ test.describe('disposable companion management', () => {
       const couponQuote = buyer.waitForResponse(response => new URL(response.url()).pathname === '/api/orders/quote' && response.request().postDataJSON()?.couponGrantId === couponId);
       await buyer.getByRole('button', { name: /Preview fixed5/ }).click();
       const quote: OrderQuote = await (await couponQuote).json();
-      expect(quote).toMatchObject({ companionId: 'preview-cp', serviceId: existingServiceId, serviceName: 'Preview ranked duo', unit: 'match', unitPrice: 7.5, quantity: 2, subtotal: 15, discount: 5, totalPrice: 10 });
-      await expect(buyer.getByLabel('Quoted total')).toHaveText('10');
+      expect(quote).toMatchObject({ companionId: 'preview-cp', serviceId: existingServiceId, serviceName: 'Preview ranked duo', unit: 'match', unitPrice: 8, quantity: 2, subtotal: 16, discount: 5, totalPrice: 11 });
+      await expect(buyer.getByLabel('Quoted total')).toHaveText('11');
       await expect(buyer.getByRole('dialog')).toHaveCount(0);
       await capture(buyer, info, 'checkout-mobile-en');
       const fundedResponse = buyer.waitForResponse(response => new URL(response.url()).pathname === '/api/orders' && response.request().method() === 'POST');
@@ -166,8 +166,8 @@ test.describe('disposable companion management', () => {
       expect(funded.status()).toBe(201);
       expect(funded.request().postDataJSON().expectedTotal).toBe(quote.totalPrice);
       const order: BusinessOrder = await funded.json();
-      expect(order).toMatchObject({ serviceId: existingServiceId, serviceName: 'Preview ranked duo', unitPrice: 7.5, quantity: 2, totalPrice: 10, escrowState: 'FROZEN' });
-      expect((await inspect<{ balance: number }>(buyer, '/api/wallet/balance')).balance).toBe(490);
+      expect(order).toMatchObject({ serviceId: existingServiceId, serviceName: 'Preview ranked duo', unitPrice: 8, quantity: 2, totalPrice: 11, escrowState: 'FROZEN' });
+      expect((await inspect<{ balance: number }>(buyer, '/api/wallet/balance')).balance).toBe(489);
       const afterHistorical = (await inspect<BusinessOrder[]>(page, '/api/orders')).filter(item => item.workflowVersion !== 2);
       expect(afterHistorical.map(({ id, serviceName, serviceId, unit, unitPrice, totalPrice, status }) => ({ id, serviceName, serviceId, unit, unitPrice, totalPrice, status }))).toEqual(historicalSnapshot);
     } finally {
@@ -197,7 +197,7 @@ test.describe('disposable companion management', () => {
       if (new URL(request.url()).pathname === '/api/companions/me/profile' && request.method() === 'PATCH') patchCount++;
     });
     await page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(page.getByRole('alert')).toContainText('valid primary price');
+    await expect(page.getByRole('alert')).toContainText('whole-number coin price');
     expect(patchCount, 'Invalid draft must be blocked before PATCH').toBe(0);
     await page.getByLabel('Primary service price').fill('20');
     let patchStatus = 503;

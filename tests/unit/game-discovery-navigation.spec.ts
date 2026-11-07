@@ -133,7 +133,7 @@ it('keeps in-memory guest chat and profile Back history through login', async ()
   await render(); await discover(); await filter();
   await act(async () => { app.navigateTo('PROFILE', companion()); });
   await act(async () => app.navigateTo('IM_DETAIL', companion()));
-  expect(app.showAuthModal).toBe(true);
+  expect(app.showAuthModal).toBe(false); expect(browser.location.pathname).toBe('/auth/login');
   await act(async () => { app.finishAuthSession(session(), false); });
   expect(app.currentView).toBe('IM_DETAIL');
   await act(async () => app.handleBack()); expect(app.currentView).toBe('PROFILE');

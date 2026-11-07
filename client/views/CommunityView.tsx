@@ -82,6 +82,7 @@ import { SettingsSubPage } from '../components/SettingsSubPage';
 import { formatChatMessageTime } from '../lib/chatTime';
 
 import { useApp } from '../app/AppContext';
+import { postCopy } from '../components/community/postCopy';
 
 export function CommunityView() {
 const {
@@ -133,7 +134,7 @@ const {
     navigateTo, handleBack, loadMore, toggleFavorite, handlePlayToggle, allSortedGames, favoritedGames, alphabet, scrollToLetter, groupedGames,
     EPALS, GAMES, POSTS, social,
   } = useApp();
-  const [showComposer, setShowComposer] = React.useState(false);
+  const copy = postCopy(locale);
 
   return (
             <motion.div 
@@ -172,14 +173,8 @@ const {
 
               {/* Posts List - Seamless Style */}
               <div className="px-6 py-4 border-b border-white/5 space-y-3">
-                <div className="flex gap-4 text-xs text-purple-400"><button onClick={() => social.setPostListMode('public')} aria-pressed={social.postListMode === 'public'}>Community posts</button><button onClick={() => { if (requireAuthAction(t('auth.loginRequiredFeature'))) { social.setPostListMode('mine'); setCommunityTab('LATEST'); setSelectedGame(null); } }} aria-pressed={social.postListMode === 'mine'}>My posts & review status</button></div>
-                <button onClick={() => { if (requireAuthAction(t('auth.loginRequiredFeature'))) setShowComposer(!showComposer); }} className="flex items-center gap-2 text-sm font-bold text-purple-400"><Plus className="w-4 h-4" />Create post</button>
-                {showComposer && <form onSubmit={async e => { e.preventDefault(); if (await social.publishPost()) { setShowComposer(false); setCommunityTab('LATEST'); setSelectedGame(null); } }} className="space-y-3">
-                  <textarea aria-label="Post content" value={social.postDraft} onChange={e => social.setPostDraft(e.target.value)} maxLength={5000} placeholder="Share something with the community…" className="w-full min-h-28 rounded-2xl bg-white/5 border border-white/10 p-4 text-sm text-white outline-none" />
-                  <p className="text-xs text-gray-500">Posts become public and earn task points only after approval.</p>
-                  <div className="flex justify-between items-center"><span className="text-xs text-gray-500">{social.postDraft.length}/5000</span><button disabled={social.publishingPost || !social.postDraft.trim()} className="px-5 py-2 rounded-full bg-purple-600 text-white font-bold text-sm disabled:opacity-50">{social.publishingPost ? 'Submitting…' : 'Submit for review'}</button></div>
-                </form>}
-                {social.postError && <p role="alert" className="text-sm text-red-400">{social.postError}</p>}
+                <div dir={locale === 'ar' ? 'rtl' : 'ltr'} className="flex gap-4 text-xs text-purple-400"><button onClick={() => social.setPostListMode('public')} aria-pressed={social.postListMode === 'public'}>{copy.public}</button><button onClick={() => { if (requireAuthAction(t('auth.loginRequiredFeature'))) { social.setPostListMode('mine'); setCommunityTab('LATEST'); setSelectedGame(null); } }} aria-pressed={social.postListMode === 'mine'}>{copy.mine}</button></div>
+                {social.postError && <p role="alert" className="text-sm text-red-400">{copy.error}</p>}
               </div>
               <div className="divide-y divide-white/5 pb-24">
                 {filteredPosts.length > 0 ? (
@@ -235,7 +230,7 @@ const {
 
                       {/* Post Content */}
                       <div className="px-6 pb-4 space-y-4">
-                        {social.postListMode === 'mine' && <p className="text-xs text-purple-300">{post.status || 'PENDING'}{post.moderationReason ? ` — ${post.moderationReason}` : ''}</p>}
+                        {social.postListMode === 'mine' && <p className="text-xs text-purple-300">{copy.statuses[post.status || 'PENDING']}{post.moderationReason ? ` — ${post.moderationReason}` : ''}</p>}
                         <p className="text-base text-gray-200 leading-relaxed">{post.content}</p>
                         {post.images && post.images.length > 0 && (
                           <div className="rounded-3xl overflow-hidden border border-white/5">
@@ -308,7 +303,7 @@ const {
                     </div>
                   </div>
                 )}
-                {social.postCursor && <button onClick={social.loadMorePosts} className="w-full py-4 text-purple-400 text-sm">Load more posts</button>}
+                {social.postCursor && <button onClick={social.loadMorePosts} className="w-full py-4 text-purple-400 text-sm">{copy.more}</button>}
               </div>
             </motion.div>
   );

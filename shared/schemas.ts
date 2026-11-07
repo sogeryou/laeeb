@@ -31,7 +31,7 @@ export const EmailCodeLoginBodySchema = z.object({
 export const CompanionApplySchema = z.object({
   gameName: z.string().trim().min(1).max(80),
   intro: z.string().trim().min(1).max(2000),
-  hourlyRate: z.number().finite().positive().max(500).refine(value => Number.isSafeInteger(Math.round(value * 100)) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-7, 'Price must have at most two decimal places'),
+  hourlyRate: z.number().finite().int('Enter a whole-number coin price').positive().max(500).safe(),
   requestId: z.string().trim().min(1).max(128).optional(),
   details: z.object({
     gameId: z.string().trim().min(1).max(100).optional(),
@@ -83,11 +83,11 @@ export const ExposureBatchSchema = z.object({
 });
 
 export const AdminOperatorPatchSchema = z.object({
-  hourlyRate: z.number().positive().max(500).optional(),
+  hourlyRate: z.number().finite().int('Enter a whole-number coin price').positive().max(500).safe().optional(),
   services: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    unitPrice: z.number().positive(),
+    unitPrice: z.number().finite().int('Enter a whole-number coin price').positive().safe(),
     unit: z.string(),
   })).optional(),
 });

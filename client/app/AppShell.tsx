@@ -84,6 +84,8 @@ import { formatChatMessageTime } from '../lib/chatTime';
 import { useApp } from './AppContext';
 import { ViewRouter } from '../views/ViewRouter';
 import { notificationCopy } from '../components/notifications/copy';
+import { SquarePen } from 'lucide-react';
+import { postCopy } from '../components/community/postCopy';
 
 export function AppShell() {
 const app = useApp();
@@ -169,8 +171,8 @@ const {
               )}
               <h2 className={`text-lg font-bold flex-1 min-w-0 ${viewHistory.length === 1 ? 'text-center' : ''}`}>
                  {currentView === 'COMMUNITY' ? (
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1">
+                  <div className="flex items-center justify-between w-full min-w-0 gap-2" dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
                       <button
                         onClick={() => setSelectedGame(null)}
                         className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
@@ -193,9 +195,15 @@ const {
                     </div>
                     <button 
                       onClick={() => navigateTo('COMMUNITY_SELECTOR')}
-                      className="p-1.5 bg-white/5 rounded-full text-gray-400 shrink-0 ml-2"
+                      aria-label={locale === 'ar' ? 'اختيار المجتمع' : 'Choose community'}
+                      className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-full text-gray-400 shrink-0"
                     >
                       <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                    <button id="community-compose-trigger" type="button" aria-label={postCopy(locale).create} title={postCopy(locale).create}
+                      onClick={() => { if (requireAuthAction(t('auth.loginRequiredFeature'))) navigateTo('POST_CREATE'); }}
+                      className="w-10 h-10 flex items-center justify-center rounded-full bg-purple-600 text-white shrink-0 hover:bg-purple-500">
+                      <SquarePen className="w-5 h-5" />
                     </button>
                   </div>
                 ) : currentView === 'IM' ? (
@@ -225,7 +233,7 @@ const {
         </header>
       )}
 
-      <main className="pb-32">
+      <main className={currentView === 'POST_CREATE' ? '' : 'pb-32'}>
         {/* Full-screen Search Modal */}
       <AnimatePresence>
         {showFullSearch && (

@@ -14,9 +14,7 @@ export function newApplicationAttempt() {
 }
 
 export function isValidApplicationPrice(value: number) {
-  const cents = value * 100;
-  return Number.isFinite(value) && value > 0 && value <= 500
-    && Number.isSafeInteger(Math.round(cents)) && Math.abs(cents - Math.round(cents)) < 1e-7;
+  return Number.isSafeInteger(value) && value > 0 && value <= 500;
 }
 
 export function legacyDetailsToDraft<T extends ApplicationDraft>(
